@@ -260,7 +260,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         # u_try = +energy_function(x_try)
         x_try = +proposal['fun'](x0_, *proposal['args'])
 
-        out = +energy_function['fun'](x_try, *energy_function['args'])
+        out = energy_function['fun'](x_try, *energy_function['args'])
         u_try = out[0]
 
         alpha = np.exp(-(u_try-u0)/kT)
@@ -295,14 +295,16 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     else:
         return np.array(traj), np.array(ene), np.array(quantities), av_alpha
 
-def compute_sqrt_det(variab, weights):
+def compute_sqrt_det(variab, weights, if_cholesky = True):
     """
     Parameters:
     
         - variab is `data.mol[name_mol].g` for the observables and `(fun_forces, pars, f)` for the force-field corrections 
-        where `ff_correction = data.mol[name_mol].ff_correction`, `f = data.mol[name_mol].f` and `fun_forces = jax.jacfwd(ff_correction, argnums=0)`
-        the Jax function for the forces, compute it just once at the beginning of the MC sampling
+            where `ff_correction = data.mol[name_mol].ff_correction`, `f = data.mol[name_mol].f` and `fun_forces = jax.jacfwd(ff_correction, argnums=0)`
+            the Jax function for the forces, compute it just once at the beginning of the MC sampling
         - weights
+        - if_cholesky: if True, compute the determinant of the covariance matrix (which is real-value, symmetric and semi-positive definite)
+            by means of the Cholesky decomposition (faster for big matrices)
 
     Return:
 
@@ -316,6 +318,41 @@ def compute_sqrt_det(variab, weights):
     av_forces = np.einsum('ti,t->i', values, weights)
     cov = np.einsum('ti,tj,t->ij', values, values, weights) - np.outer(av_forces, av_forces)
 
-    measure = np.sqrt(np.linalg.det(cov))
+    if not if_cholesky:
+        measure = np.sqrt(np.linalg.det(cov))
+    else:  # alternatively, exploit the Cholesky decomposition
+        triang = np.linalg.cholesky(cov)
+        measure = np.prod(np.diag(triang))
 
     return measure, cov
+
+def block_analysis(x, size_blocks: list = None, delta = 1):
+
+    size = len(x)
+    mean = np.mean(x)
+    std = np.std(x)/np.sqrt(size)
+
+    if size_blocks is None:
+        size_blocks = np.arange(1, np.int64(size/2) + delta, delta)
+
+    n_blocks = []
+    epsilon = []
+
+    for size_block in size_blocks:
+        n_block = np.int64(size/size_block)
+        
+        # a = 0 
+        # for i in range(n_block):
+        #     a += (np.mean(x[(size_block*i):(size_block*(i+1))]))**2
+        # 
+        # epsilon.append(np.sqrt((a/n_blocks[-1] - mean**2)/n_blocks[-1]))
+
+        block_averages = []
+        for i in range(n_block):
+            block_averages.append(np.mean(x[(size_block*i):(size_block*(i+1))]))
+        block_averages = np.array(block_averages)
+
+        n_blocks.append(n_block)
+        epsilon.append(np.sqrt((np.mean(block_averages**2)-np.mean(block_averages)**2)/n_block))
+    
+    return mean, std, epsilon, n_blocks, size_blocks
