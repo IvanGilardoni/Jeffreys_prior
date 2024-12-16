@@ -1,12 +1,13 @@
 """
 Script to perform Bayesian sampling of the optimal ensembles parametrized by lambda coefficients
-(Ensemble Refinement only).
+(Ensemble Refinement only or Force-Field Fitting only).
 """
 
 import os
 import datetime
 import sys
 import numpy as np
+import jax
 import jax.numpy as jnp
 # import matplotlib.pyplot as plt
 import pandas
@@ -14,7 +15,7 @@ import pandas
 import sys
 sys.path.append('../loss_function_complete/')
 
-from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function
+from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function, unwrap_2dict
 from basic_functions import run_Metropolis, compute_sqrt_det
 
 def flat_lambda(lambdas):
@@ -31,12 +32,13 @@ def flat_lambda(lambdas):
 #%% 0. global values
 
 stride = int(sys.argv[1])  # stride for the frames
-alpha = float(sys.argv[2])  # hyperparameter value for Ensemble Refinement loss function
+alpha = None  # float(sys.argv[2])  # hyperparameter value for Ensemble Refinement loss function
+beta = float(sys.argv[2])
 
 if_normalize = int(sys.argv[3])  # True (1) if you want to normalize the observables, False (0) otherwise
 if_reduce = int(sys.argv[4])  # True if you want to take just 2 observables (it works only for `AAAA` and `backbone1_gamma_3J`)
 
-dlambda = float(sys.argv[5])  # standard deviation of the normal distribution for the proposal
+dx = float(sys.argv[5])  # standard deviation of the normal distribution for the proposal
 if_Jeffreys = int(sys.argv[6])  # boolean variable (True if you take into account the Jeffreys prior, False otherwise)
 n_steps = int(sys.argv[7])  # n. of steps in the Metropolis sampling
 
@@ -119,35 +121,68 @@ if if_reduce:
     # data.mol['AAAA'].normg_std[s] = data.mol['AAAA'].normg_std[s][:2]
     data.mol['AAAA'].n_experiments[s] = 2
 
-result = minimizer(data, alpha=alpha)
+if alpha is not None:
+    result = minimizer(data, alpha=alpha)
 
-lambdas = result.min_lambdas
-flatten_lambda = flat_lambda(lambdas)
+    lambdas = result.min_lambdas
+    x0 = flat_lambda(lambdas)
+
+else:
+    assert beta is not None
+    result = minimizer(data, regularization={'force_field_reg': 'KL divergence'}, beta=beta)
+
+    x0 = result.pars
 
 #%% 3. run Metropolis sampling
-
-x0 = flatten_lambda
 
 def proposal(x0, dx=0.01):
     x_new = x0 + dx*np.random.normal(size=len(x0))
     return x_new
 
-proposal_full = {'fun': proposal, 'args': ([dlambda])}
+proposal_full = {'fun': proposal, 'args': ([dx])}
 
-def energy_fun(lambdas, if_Jeffreys):
-    
-    out = loss_function(np.zeros(2), data, regularization=None, alpha=1, fixed_lambdas=lambdas, if_save=True)
-    
-    energy = out.loss_explicit
+if alpha is not None:
 
-    if if_Jeffreys:
-        name_mol = list(out.weights_new.keys())[0]
-        measure, cov = compute_sqrt_det(data.mol[name_mol].g, out.weights_new[name_mol])
-        energy -= np.log(measure)
-    
-    return energy
+    def energy_fun_ER(lambdas, if_Jeffreys):  # energy_fun output must be a tuple, 2nd output None if no quantities are computed
+        """ there are some inner variables previously defined but non as function input, like alpha """
+        
+        out = loss_function(np.zeros(2), data, regularization=None, alpha=alpha, fixed_lambdas=lambdas, if_save=True)
+        
+        energy = out.loss_explicit
 
-energy_function = {'fun': energy_fun, 'args': ([if_Jeffreys])}
+        av_g = unwrap_2dict(out.av_g)[0]
+
+        if if_Jeffreys:
+            name_mol = list(out.weights_new.keys())[0]
+            measure, cov = compute_sqrt_det(data.mol[name_mol].g, out.weights_new[name_mol], if_cholesky=True)
+            energy -= np.log(measure)
+        
+        return energy, av_g
+
+    energy_function = {'fun': energy_fun_ER, 'args': ([if_Jeffreys])}
+
+else:
+
+    ff_correction = data.mol[name_mol].ff_correction
+    fun_forces = jax.jacfwd(ff_correction, argnums=0)
+
+    def energy_fun_FFF(pars, if_Jeffreys):
+        """ there are some inner variables previously defined but non as function input, like beta """
+
+        out = loss_function(pars, data, regularization={'force_field_reg': 'KL divergence'}, beta=beta, if_save=True)
+        
+        energy = out.loss  # which is loss_explicit if alpha is infinite
+
+        av_g = unwrap_2dict(out.av_g)[0]
+
+        if if_Jeffreys:
+            name_mol = list(out.weights_new.keys())[0]
+            measure, cov = compute_sqrt_det((fun_forces, pars, data.mol[name_mol].f), out.weights_new[name_mol])
+            energy -= np.log(measure)
+        
+        return energy, av_g
+
+    energy_function = {'fun': energy_fun_FFF, 'args': ([if_Jeffreys])}
 
 sampling = run_Metropolis(x0, proposal_full, energy_function, n_steps=n_steps)
 
@@ -161,8 +196,11 @@ path = 'Result_' + str(date)
 if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
 
-stride, alpha, if_normalize, if_reduce, dlambda, if_Jeffreys, n_steps
-values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dlambda, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+if alpha is not None:
+    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dlambda, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+else:
+    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dlambda, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
 
