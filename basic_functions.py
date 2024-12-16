@@ -221,6 +221,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     `energy_function` energy, for a n. of steps `n_steps` and with temperature `kT`.
     If `energy_function` has more than one output, `quantity_function` is ignored and the quantities of interest are the 2nd output of `energy_function`
     (in this way, they are computed together with the energy).
+    The first argument of `energy_function` is the sampling variable.
     """
 
     if energy_function is None: energy_function = {'fun': lambda x : 0, 'args': ()}
@@ -263,7 +264,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         out = energy_function['fun'](x_try, *energy_function['args'])
         u_try = out[0]
 
-        alpha = np.exp(-(u_try-u0)/kT)
+        alpha = np.exp(-(u_try - u0)/kT)
         
         if alpha > 1: alpha = 1
         if alpha > rng.random():
@@ -326,7 +327,7 @@ def compute_sqrt_det(variab, weights, if_cholesky = True):
 
     return measure, cov
 
-def block_analysis(x, size_blocks: list = None, delta = 1):
+def block_analysis(x, size_blocks: list = None, delta = 1, n_conv = 50):
 
     size = len(x)
     mean = np.mean(x)
@@ -354,5 +355,12 @@ def block_analysis(x, size_blocks: list = None, delta = 1):
 
         n_blocks.append(n_block)
         epsilon.append(np.sqrt((np.mean(block_averages**2)-np.mean(block_averages)**2)/n_block))
+
+    # find the optimal epsilon: smooth the epsilon function and find the first time it decreases
+    kernel = np.ones(n_conv)/n_conv
+    smooth = np.convolve(epsilon, kernel, mode='same')
+    diff = np.ediff1d(smooth)
+    wh = np.where(diff < 0)
+    opt_epsilon = smooth[wh[0][0]]
     
-    return mean, std, epsilon, n_blocks, size_blocks
+    return mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks
