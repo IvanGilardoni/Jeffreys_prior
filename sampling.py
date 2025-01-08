@@ -150,7 +150,7 @@ if alpha is not None:
         
         energy = out.loss_explicit
 
-        av_g = unwrap_2dict(out.av_g)[0]
+        av_g = unwrap_2dict(out.av_g)[0] + [np.float(out.D_KL_alpha['AAAA'])]
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
@@ -163,6 +163,10 @@ if alpha is not None:
 
 else:
 
+    name_mols = data.properties.system_names
+    assert len(name_mols) == 1, 'this script works only for 1 molecular system'
+    name_mol = name_mols[0]
+
     ff_correction = data.mol[name_mol].ff_correction
     fun_forces = jax.jacfwd(ff_correction, argnums=0)
 
@@ -173,7 +177,7 @@ else:
         
         energy = out.loss  # which is loss_explicit if alpha is infinite
 
-        av_g = unwrap_2dict(out.av_g)[0]
+        av_g = unwrap_2dict(out.av_g)[0] + [np.float(out.reg_ff['AAAA'])]
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
@@ -197,12 +201,15 @@ if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
 
 if alpha is not None:
-    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dlambda, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
 else:
-    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dlambda, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
 
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
 
 np.save(path + '/trajectory', sampling[0])
 np.save(path + '/energy', sampling[1])
+
+if type(sampling[2]) is not float:  # if float, it is the average acceptance
+    np.save(path + '/quantities', sampling[2])
