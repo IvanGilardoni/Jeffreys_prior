@@ -213,18 +213,22 @@ def block_analysis(x, size_blocks, n_conv = 50):
     
     return mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks
 
-def local_density(variab, weights, if_cholesky = True, which_measure = 'jeffreys'):
+def local_density(variab, weights, which_measure = 'jeffreys'):
     """
     This function computes the local density of ensembles in the cases of Ensemble Refinement or Force-Field Fitting.
     
-    This density can be defined through the  Jeffreys ``uninformative" prior: in these two cases, the Jeffreys prior
-    is given by the square root of the determinant of the covariance matrix (of the observables in Ensemble Refinement
-    or the generalized forces in Force-Field Fitting, where the generalized forces are the derivatives of the force-field
-    correction with respect to the fitting coefficients).
+    This density can be defined through the Jeffreys ``uninformative" prior (`which_measure = 'jeffreys'`):
+    in these two cases, the Jeffreys prior is given by the square root of the determinant of the covariance matrix
+    (of the observables in Ensemble Refinement or the generalized forces in Force-Field Fitting,
+    where the generalized forces are the derivatives of the force-field correction with respect to the fitting coefficients).
     
     It includes also the possibility for the computation of the local density of ensembles with plain Dirichlet
-    if `which\_measure` is `dirichlet` or with the variation of the average observables / generalized forces if 
-    `which_measure` is `average`.
+    if `which_measure == 'dirichlet'`, or with the variation of the average observables if 
+    `which_measure == 'average'`.
+
+    Since we are always dealing with a real-value, symmetric and semi-positive definite matrix,
+    its determinant is computed through the Cholesky decomposition (which is faster for big matrices):
+    `triang` is such that `metric = triang * triang.T`, so `sqrt(det metric) = det(triang)`.
 
     Parameters
     -----------
@@ -233,13 +237,14 @@ def local_density(variab, weights, if_cholesky = True, which_measure = 'jeffreys
         For Ensemble Refinement, `variab` is either the dictionary `data.mol[name_mol].g` to be unwrapped
         or directly the numpy array with the observables defined in each frame.
         
-        For Force-Field Fitting, `variab` is the tuple `(fun_forces, pars, f)` where:
+        For Force-Field Fitting and `which_measure == 'jeffreys' or 'dirichlet'`, `variab` is the tuple `(fun_forces, pars, f)` where:
             - `fun_forces` is the function for the gradient of the force-field correction with respect to `pars`
             (defined through Jax as `fun_forces = jax.jacfwd(ff_correction, argnums=0)` where `ff_correction = data.mol[name_mol].ff_correction`;
             you can compute it just once at the beginning of the MC sampling);
             - `pars` is the numpy.ndarray of parameters for the force-field correction;
             - `f` is the numpy.ndarray `data.mol[name_mol].f` with the terms required to compute the force-field correction.
-        
+        If `which_measure = 'average'`, then the observables are required, too, and `variab` is the tuple `(fun_forces, pars, f, g)`.
+
         See documentation of `MDRefine` at https://www.bussilab.org/doc-MDRefine/MDRefine/index.html for further details
         about the `data` object.
 
@@ -247,10 +252,6 @@ def local_density(variab, weights, if_cholesky = True, which_measure = 'jeffreys
         Numpy array with the normalized weights of each frame; this is the probability distribution
         at which you want to compute the Jeffreys prior, corresponding to the local density of ensembles.
 
-    if_cholesky : bool
-        Boolean variable: if True, compute the determinant of the covariance matrix (which is real-value, symmetric
-        and semi-positive definite) by means of the Cholesky decomposition (which is faster for big matrices).
-    
     which_measure: str
         String variable, chosen among: `jeffreys`, `dirichlet` or `average`, indicating the prescription
         for the local density of ensembles (Jeffreys prior, plain Dirichlet, average observables).
@@ -264,10 +265,71 @@ def local_density(variab, weights, if_cholesky = True, which_measure = 'jeffreys
         (Jeffreys prior by default).
     
     cov : numpy.ndarray
-        The metric tensor for the chosen metrics defined by `which_measure`; its square root determinant
-        is the local density of ensembles. It corresponds to the variance-covariance matrix only for the Jeffreys prior.
+        The metric tensor for the chosen metrics defined by `which_measure` if `which_measure = 'jeffreys'` or `'dirichlet'`;
+        the covariance matrix if `which_measure = 'average'`.
     """
 
+    if which_measure == 'jeffreys' or (which_measure == 'average' and type(variab) is not tuple):
+        # in this case, the density is given by computing the variance-covariance matrix of values
+        # (either forces or observables)
+
+        if type(variab) is tuple: values = variab[0](variab[1], variab[2])
+        else:
+            if type(variab) is dict: values = np.hstack([variab[s] for s in variab.keys()])
+            else: values = variab
+
+        av_values = np.einsum('ti,t->i', values, weights)
+        cov = np.einsum('ti,tj,t->ij', values, values, weights) - np.outer(av_values, av_values)
+
+        # exploit the Cholesky decomposition:
+        # metric = triang*triang.T, so sqrt(det metric) = det(triang)
+        triang = np.linalg.cholesky(cov)
+        density = np.prod(np.diag(triang))
+
+        if which_measure == 'average': density = density**2
+
+        return density, cov
+
+    elif which_measure == 'average' and type(variab) is tuple:
+        # in this case, we are sampling Force-Field Fitting with 'average' measure of ensembles
+        # so we have to compute the covariance matrix of observables and forces
+        
+        assert len(variab) == 4
+
+        forces = variab[0](variab[1], variab[2])
+        
+        if type(variab[3]) is dict: g = np.hstack([variab[s] for s in variab.keys()])
+        else: g = variab[3]
+
+        av_forces = np.einsum('ti,t->i', forces, weights)
+        av_g = np.einsum('ti,t->i', g, weights)
+        cov = np.einsum('ti,tj,t->ij', forces, g, weights) - np.outer(av_forces, av_g)
+        
+        metric = np.einsum('ji,ki->jk', cov, cov)
+        triang = np.linalg.cholesky(metric)
+        density = np.prod(np.diag(triang))
+
+        return density, cov
+
+    else:
+        assert which_measure == 'dirichlet', 'error on `which_measure`'
+
+        if type(variab) is tuple: values = variab[0](variab[1], variab[2])
+        else:
+            if type(variab) is dict: values = np.hstack([variab[s] for s in variab.keys()])
+            else: values = variab
+
+        av_values = np.einsum('ti,t->i', values, weights)
+        metric = np.einsum('ti,tj,t->ij', values, values, weights**2) + (len(weights) - 2)*np.outer(av_values, av_values)
+
+        triang = np.linalg.cholesky(metric)
+        density = np.prod(np.diag(triang))
+
+        return density, metric
+
+def local_density_old(variab, weights, if_cholesky = True, which_measure = 'jeffreys'):
+    """ old implementation of `local_density`: it does not work for every case of Force-Field Fitting """
+    
     if type(variab) is tuple: values = variab[0](variab[1], variab[2])
     else:
         try: values = np.hstack([variab[s] for s in variab.keys()])
@@ -306,7 +368,7 @@ class compute_single:
     Parameters
     ---------------
     
-    lambdas : float or numpy.ndarray
+    lambdas : float or numpy.float64 or numpy.ndarray
         Value(s) of `lambdas` coefficient(s).
     
     P0 : numpy.ndarray
@@ -317,7 +379,7 @@ class compute_single:
         where M is the n. of observables and N the n. of frames.
         If `type(lambdas) is float`, then `g` can be just a 1d array of length N.
     
-    g_exp, sigma : float or numpy.ndarray
+    gexp, sigma : float or numpy.ndarray
         The corresponding experimental values and associated uncertainties.
     
     alpha : float
@@ -326,7 +388,7 @@ class compute_single:
 
     def __init__(self, lambdas, P0, g, gexp, sigma, alpha):
 
-        if type(lambdas) is float: lambdas = np.array([lambdas])
+        if type(lambdas) in [float, np.float64]: lambdas = np.array([lambdas])
         if len(g.shape) == 1: g = np.array([g])
         
         P0 = P0/np.sum(P0)
@@ -363,6 +425,11 @@ class compute_single:
         
         self.std_g = np.sqrt(self.var_g)
         """`float` or `numpy.ndarray` with the standard deviation of the observables at given `lambdas`."""
+
+        if len(self.var_g) == 1:
+            self.var_g = float(self.var_g)
+            self.std_g = float(self.std_g)
+        
         
         self.chi2 = ((self.av_g - gexp)/sigma)**2
         """`float` or `numpy.ndarray` with the $\chi^2$ at given `lambdas`."""
@@ -391,20 +458,31 @@ class compute_single:
 
 def compute(my_lambdas, P0, g, gexp, sigma, alpha):
     """
+    Do `compute_single` for every lambda specified by `my_lambdas`, in order to get a 1d or 2d grid
+    of results as a function of lambda. In the 1d case, it stacks `compute_single` results, then
+    rearrange as a single dictionary. In the 2d case, it does not rearrange.
 
-    it works for:
-    - 1d case: my_lambdas is a 1d array; in this case, `compute`
-        stacks `compute_single` results and includes the "volume transformation" for the Dirichlet prior
-        and also the values of Gamma function $\Gamma(\lambda)$; then, rearrange as a single dict
-    - 2d case: without rearranging as a single dict
+    Parameters:
+    -----------
+
+    my_lambdas : numpy.ndarray or tuple
+        In the 1d case, `my_lambdas` is a 1d numpy array
+    
+    P0, g : numpy.ndarray
+        Original probability distribution and observables (see `compute_single`).
+    
+    gexp, sigma : float or numpy.ndarray
+        Experimental values and uncertainties.
+
+    alpha : float
+        Hyperparameter value for Ensemble Refinement.
     """
 
-    if not type(my_lambdas) is tuple:
+    if not type(my_lambdas) is tuple:  # namely, 1d case
 
         results = []
 
         for lambda_i in my_lambdas:
-
             out = compute_single(lambda_i, P0, g, gexp, sigma, alpha)
             results.append(vars(out))
         
