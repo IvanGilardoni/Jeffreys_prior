@@ -283,8 +283,11 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
 
         # exploit the Cholesky decomposition:
         # metric = triang*triang.T, so sqrt(det metric) = det(triang)
-        triang = np.linalg.cholesky(cov)
-        density = np.prod(np.diag(triang))
+        try:  # it may happen: `Matrix is not positive definite` (zero due to round-off errors)
+            triang = np.linalg.cholesky(cov)
+            density = np.prod(np.diag(triang))
+        except:
+            density = np.sqrt(np.linalg.det(cov))
 
         if which_measure == 'average': density = density**2
 
@@ -292,7 +295,9 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
 
     elif which_measure == 'average' and type(variab) is tuple:
         # in this case, we are sampling Force-Field Fitting with 'average' measure of ensembles
-        # so we have to compute the covariance matrix of observables and forces
+        # so we have to compute the covariance matrix of observables and forces;
+        # then, since it is not a square matrix in general, you cannot compute its det,
+        # but you have to compute the sqrt of det (C.T C)
         
         assert len(variab) == 4
 
@@ -320,10 +325,15 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
             else: values = variab
 
         av_values = np.einsum('ti,t->i', values, weights)
-        metric = np.einsum('ti,tj,t->ij', values, values, weights**2) + (len(weights) - 2)*np.outer(av_values, av_values)
+        metric = np.einsum('ti,tj,t->ij', values, values, weights**2) + np.sum(weights**2)*np.outer(av_values, av_values)
+        met = np.einsum('i,tj,t->ij', av_values, values, weights**2)
+        metric -= met + met.T
 
-        triang = np.linalg.cholesky(metric)
-        density = np.prod(np.diag(triang))
+        try:
+            triang = np.linalg.cholesky(metric)
+            density = np.prod(np.diag(triang))
+        except:
+            density = np.sqrt(np.linalg.det(metric))
 
         return density, metric
 
@@ -343,8 +353,9 @@ def local_density_old(variab, weights, if_cholesky = True, which_measure = 'jeff
     if which_measure == 'jeffreys' or which_measure == 'average':
         metric = np.einsum('ti,tj,t->ij', values, values, weights) - np.outer(av_forces, av_forces)
     
-    elif which_measure == 'dirichlet':
-        metric = np.einsum('ti,tj,t->ij', values, values, weights**2) + (len(weights) - 2)*np.outer(av_forces, av_forces)
+    elif which_measure == 'dirichlet': None
+        # wrong!
+        # metric = np.einsum('ti,tj,t->ij', values, values, weights**2) + (len(weights) - 2)*np.outer(av_forces, av_forces)
 
     if which_measure == 'average':
         metric = np.einsum('jk,jl->kl', metric, metric)
@@ -388,7 +399,7 @@ class compute_single:
 
     def __init__(self, lambdas, P0, g, gexp, sigma, alpha):
 
-        if type(lambdas) in [float, np.float64]: lambdas = np.array([lambdas])
+        if type(lambdas) in [float, np.float64, int]: lambdas = np.array([lambdas])
         if len(g.shape) == 1: g = np.array([g])
         
         P0 = P0/np.sum(P0)
@@ -444,11 +455,15 @@ class compute_single:
         """`float` with the value of Gamma function at given `lambdas`."""
 
         # if len(lambdas) == 1: self.jeffreys = self.std_g
-        self.jeffreys = local_density(g.T, self.P)[0]
+        out = local_density(g.T, self.P)
+        self.jeffreys = out[0]
         """ `float` reporting the local density of ensembles measured by the Jeffreys prior.
         Notice that in 1d it is given directly by the standard deviation of the observables,
         while in multi-dimension you have to take into account also the covariance between different observables,
         resulting in the square root of the determinant of the variance-covariance matrix."""
+        
+        self.cov = out[1]
+        """ `numpy.ndarray` with the covariance matrix given by `local_density` with `which_measure = 'jeffreys'`."""
 
         self.dirichlet = local_density(g.T, self.P, which_measure='dirichlet')[0]
         """`float` with the local density of ensembles measured by the (plain) Dirichlet prior."""
