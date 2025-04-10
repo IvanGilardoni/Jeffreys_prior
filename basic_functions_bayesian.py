@@ -7,212 +7,6 @@ Basic functions.
 
 import numpy as np
 
-def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1, n_steps = 100, seed = 1, i_print = 100):
-    """
-    This function runs a Metropolis sampling algorithm.
-    
-    Parameters
-    -----------
-
-    x0 : numpy.ndarray
-        Numpy array for the initial configuration.
-    
-    proposal : dict
-        Dictionary with two keys `fun` and `args`; `proposal['fun']` is the proposal function, which takes
-        as input variables `x0` and `*proposal['args']` and returns the new proposed configuration
-        (trial move of Metropolis algorithm).
-
-    energy_function : dict
-        Dictionary with two keys `fun` and `args`; `energy_function['fun']` is the energy function, which takes
-        as input variables a configuration (`x0` for instance) and `*energy_function['args']` and returns the
-        so-defined energy of that configuration; `energy_function['fun']` can return also some quantities of
-        interest, defined on the input configuration.
-    
-    quantity_function : function
-        Function used to compute some quantities of interest on the initial configuration.
-        If `energy_function` has more than one output, `quantity_function` is ignored and the quantities
-        of interest are the 2nd output of `energy_function` (in this way, they are computed together with
-        the energy).
-        Notice that `quantity_function` does not support other input parameters beyond the configuration;
-        otherwise, you can use `energy_function`.
-
-    kT : float
-        Temperature of the Metropolis sampling algorithm.
-
-    n_steps : int
-        Number of steps of Metropolis.
-    
-    seed : int
-        Seed for the random generation.
-    
-    i_print : int
-        How many steps to print an indicator of the running algorithm (current n. of steps).
-    -----------
-
-    Returns
-    -----------
-    traj : numpy.ndarray
-        Numpy array with the trajectory.
-
-    ene : numpy.ndarray
-        Numpy array with the energy.
-
-    av_alpha : float
-        Average acceptance.
-
-    quantities : numpy.ndarray, optional
-        Numpy array with the quantities of interest (if any).
-    """
-
-    if energy_function is None: energy_function = {'fun': lambda x : 0, 'args': ()}
-
-    rng = np.random.default_rng(seed)
-
-    x0_ = +x0  # in order TO AVOID OVERWRITING!
-    
-    traj = []
-    ene = []
-    quantities = []
-    av_alpha = 0
-
-    traj.append([])
-    traj[-1] = +x0_
-
-    # energy_function may have more than one output
-    out = energy_function['fun'](x0_, *energy_function['args'])
-    u0 = out[0]
-
-    if len(out) == 2:
-        print('Warning: the quantities of interest are given by energy_function')  #  and not by quantity_function')
-        q0 = out[1]  # if `energy_function` has more than one output, the second one is the quantity of interest
-    else: q0 = quantity_function(x0_)
-    
-    ene.append([])
-    ene[-1] = +u0
-
-    quantities.append([])
-    quantities[-1] = q0
-
-    for i_step in range(n_steps):
-
-        x_try = +proposal['fun'](x0_, *proposal['args'])
-
-        out = energy_function['fun'](x_try, *energy_function['args'])
-        u_try = out[0]
-
-        alpha = np.exp(-(u_try - u0)/kT)
-        
-        if alpha > 1: alpha = 1
-        if alpha > rng.random():
-            av_alpha += 1
-            x0_ = +x_try
-            u0 = +u_try
-
-            if len(out) == 2: q0 = out[1]
-            else: q0 = quantity_function(x0_)
-        
-        # traj.append(x0_)
-        # to avoid overwriting!
-        traj.append([])
-        traj[-1] = +x0_
-        
-        ene.append([])
-        ene[-1] = +u0
-
-        quantities.append([])
-        quantities[-1] = q0
-
-        if np.mod(i_step, i_print) == 0: print(i_step)
-
-    av_alpha = av_alpha/n_steps
-    
-    if quantities[0] is None: return np.array(traj), np.array(ene), av_alpha
-    else: return np.array(traj), np.array(ene), av_alpha, np.array(quantities)
-
-def block_analysis(x, size_blocks, n_conv = 50):
-    """
-    This function performs the block analysis of a (correlated) time series `x`, cycling over different block sizes.
-    It includes also a numerical search of the optimal estimated error `epsilon`, by smoothing `epsilon` and searching
-    for the first time it decreases, which should correspond to a plateau region.
-
-    Parameters
-    -----------
-
-    x : numpy.ndarray
-        Numpy array with the time series of which you do block analysis.
-
-    size_blocks : list, int or None
-        The list with the block sizes used in the analysis; you can either pass an integer value,
-        in this case the list of sizes is given by `np.arange(1, np.int64(size/2) + size_blocks, size_blocks)`;
-        further, if `size_blocks` is `None`, the list of sizes is `np.arange(1, np.int64(size/2) + 1, 1)`.
-
-    n_conv : int
-        Length (as number of elements in the block-size list) of the kernel used to smooth the epsilon function
-        (estimated error vs. block size) in order to search for the optimal epsilon, corresponding to the plateau.
-    -----------
-
-    Returns
-    -----------
-    
-    mean : float
-        Mean value of the time series.
-
-    std : float
-        Standard deviation of the time series (assuming independent frames).
-
-    opt_epsilon : float
-        Optimal estimate of the associated error epsilon.
-
-    epsilon : list
-        List with the associated error `epsilon` for each block size.
-
-    smooth : numpy.ndarray
-        Smoothing of the `epsilon` function.
-
-    n_blocks : list
-        List with the number of blocks in the time series, for each analysed block size.
-
-    size_blocks : list
-        List with the block sizes initially defined.
-    """
-
-    size = len(x)
-    mean = np.mean(x)
-    std = np.std(x)/np.sqrt(size)
-
-    if size_blocks is None: size_blocks = np.arange(1, np.int64(size/2) + 1, 1)
-    elif type(size_blocks) is int: size_blocks = np.arange(1, np.int64(size/2) + size_blocks, size_blocks)
-    else: assert type(size_blocks) is list, 'incorrect size_blocks'
-
-    n_blocks = []
-    epsilon = []
-
-    for size_block in size_blocks:
-
-        n_block = np.int64(size/size_block)
-        
-        # a = 0 
-        # for i in range(n_block):
-        #     a += (np.mean(x[(size_block*i):(size_block*(i+1))]))**2
-        # 
-        # epsilon.append(np.sqrt((a/n_blocks[-1] - mean**2)/n_blocks[-1]))
-
-        block_averages = []
-        for i in range(n_block): block_averages.append(np.mean(x[(size_block*i):(size_block*(i+1))]))
-        block_averages = np.array(block_averages)
-
-        n_blocks.append(n_block)
-        epsilon.append(np.sqrt((np.mean(block_averages**2) - np.mean(block_averages)**2)/n_block))
-
-    # find the optimal epsilon: smooth the epsilon function and find the first time it decreases
-    kernel = np.ones(n_conv)/n_conv
-    smooth = np.convolve(epsilon, kernel, mode='same')
-    diff = np.ediff1d(smooth)
-    wh = np.where(diff < 0)
-    opt_epsilon = smooth[wh[0][0]]
-    
-    return mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks
-
 def local_density(variab, weights, which_measure = 'jeffreys'):
     """
     This function computes the local density of ensembles in the cases of Ensemble Refinement or Force-Field Fitting.
@@ -276,6 +70,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
         if type(variab) is tuple: values = variab[0](variab[1], variab[2])
         else:
             if type(variab) is dict: values = np.hstack([variab[s] for s in variab.keys()])
+            elif type(variab) is np.ndarray and len(variab.shape) == 1: values = np.array([variab]).T
             else: values = variab
 
         av_values = np.einsum('ti,t->i', values, weights)
@@ -528,3 +323,225 @@ def compute(my_lambdas, P0, g, gexp, sigma, alpha):
         # and analogously for the other keys
 
     else: return None
+
+def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1, n_steps = 100, seed = 1, i_print = 100):
+    """
+    This function runs a Metropolis sampling algorithm.
+    
+    Parameters
+    -----------
+
+    x0 : numpy.ndarray
+        Numpy array for the initial configuration.
+    
+    proposal : function or float
+        Function for the proposal move, which takes as input variables just the starting configuration `x0`
+        and returns the new proposed configuration (trial move of Metropolis algorithm).
+        Alternatively, float variable for the standard deviation of a (zero-mean) multi-variate Gaussian variable
+        representing the proposed step (namely, the stride).
+
+    energy_function : function
+        Function for the energy, which takes as input variables just a configuration (`x0` for instance)
+        and returns its energy; `energy_function` can return also some quantities of interest,
+        defined on the input configuration.
+    
+    quantity_function : function
+        Function used to compute some quantities of interest on the initial configuration.
+        If `energy_function` has more than one output, `quantity_function` is ignored and the quantities
+        of interest are the 2nd output of `energy_function` (in this way, they are computed together with
+        the energy).
+        Notice that `quantity_function` does not support other input parameters beyond the configuration;
+        otherwise, you can use `energy_function`.
+
+    kT : float
+        Temperature of the Metropolis sampling algorithm.
+
+    n_steps : int
+        Number of steps of Metropolis.
+    
+    seed : int
+        Seed for the random generation.
+    
+    i_print : int
+        How many steps to print an indicator of the running algorithm (current n. of steps).
+    -----------
+
+    Returns
+    -----------
+    traj : numpy.ndarray
+        Numpy array with the trajectory.
+
+    ene : numpy.ndarray
+        Numpy array with the energy.
+
+    av_alpha : float
+        Average acceptance.
+
+    quantities : numpy.ndarray, optional
+        Numpy array with the quantities of interest (if any).
+    """
+
+    if energy_function is None:
+        # energy_function = {'fun': lambda x : 0, 'args': ()}
+        energy_function = lambda x : 0
+
+    if type(proposal) is float:
+        
+        proposal_stride = proposal
+        # def fun_proposal(x0, dx = 0.01):
+        #     x_new = x0 + dx*np.random.normal(size=len(x0))
+        #     return x_new
+
+        # proposal = {'fun': fun_proposal, 'args': ([proposal])}
+
+        def proposal(x0):
+            x_new = x0 + proposal_stride*np.random.normal(size=len(x0))
+            return x_new
+
+    rng = np.random.default_rng(seed)
+
+    x0_ = +x0  # in order TO AVOID OVERWRITING!
+    
+    traj = []
+    ene = []
+    quantities = []
+    av_alpha = 0
+
+    traj.append([])
+    traj[-1] = +x0_
+
+    # energy_function may have more than one output
+    # out = energy_function['fun'](x0_, *energy_function['args'])
+    out = energy_function(x0_)
+    u0 = out[0]
+
+    if len(out) == 2:
+        print('Warning: the quantities of interest are given by energy_function')  #  and not by quantity_function')
+        q0 = out[1]  # if `energy_function` has more than one output, the second one is the quantity of interest
+    else: q0 = quantity_function(x0_)
+    
+    ene.append([])
+    ene[-1] = +u0
+
+    quantities.append([])
+    quantities[-1] = q0
+
+    for i_step in range(n_steps):
+
+        x_try = +proposal(x0_)  # proposal['fun'](x0_, *proposal['args'])
+
+        out = energy_function(x_try)  # energy_function['fun'](x_try, *energy_function['args'])
+        u_try = out[0]
+
+        alpha = np.exp(-(u_try - u0)/kT)
+        
+        if alpha > 1: alpha = 1
+        if alpha > rng.random():
+            av_alpha += 1
+            x0_ = +x_try
+            u0 = +u_try
+
+            if len(out) == 2: q0 = out[1]
+            else: q0 = quantity_function(x0_)
+        
+        # traj.append(x0_)
+        # to avoid overwriting!
+        traj.append([])
+        traj[-1] = +x0_
+        
+        ene.append([])
+        ene[-1] = +u0
+
+        quantities.append([])
+        quantities[-1] = q0
+
+        if np.mod(i_step, i_print) == 0: print(i_step)
+
+    av_alpha = av_alpha/n_steps
+    
+    if quantities[0] is None: return np.array(traj), np.array(ene), av_alpha
+    else: return np.array(traj), np.array(ene), av_alpha, np.array(quantities)
+
+def block_analysis(x, size_blocks, n_conv = 50):
+    """
+    This function performs the block analysis of a (correlated) time series `x`, cycling over different block sizes.
+    It includes also a numerical search of the optimal estimated error `epsilon`, by smoothing `epsilon` and searching
+    for the first time it decreases, which should correspond to a plateau region.
+
+    Parameters
+    -----------
+
+    x : numpy.ndarray
+        Numpy array with the time series of which you do block analysis.
+
+    size_blocks : list, int or None
+        The list with the block sizes used in the analysis; you can either pass an integer value,
+        in this case the list of sizes is given by `np.arange(1, np.int64(size/2) + size_blocks, size_blocks)`;
+        further, if `size_blocks` is `None`, the list of sizes is `np.arange(1, np.int64(size/2) + 1, 1)`.
+
+    n_conv : int
+        Length (as number of elements in the block-size list) of the kernel used to smooth the epsilon function
+        (estimated error vs. block size) in order to search for the optimal epsilon, corresponding to the plateau.
+    -----------
+
+    Returns
+    -----------
+    
+    mean : float
+        Mean value of the time series.
+
+    std : float
+        Standard deviation of the time series (assuming independent frames).
+
+    opt_epsilon : float
+        Optimal estimate of the associated error epsilon.
+
+    epsilon : list
+        List with the associated error `epsilon` for each block size.
+
+    smooth : numpy.ndarray
+        Smoothing of the `epsilon` function.
+
+    n_blocks : list
+        List with the number of blocks in the time series, for each analysed block size.
+
+    size_blocks : list
+        List with the block sizes initially defined.
+    """
+
+    size = len(x)
+    mean = np.mean(x)
+    std = np.std(x)/np.sqrt(size)
+
+    if size_blocks is None: size_blocks = np.arange(1, np.int64(size/2) + 1, 1)
+    elif type(size_blocks) is int: size_blocks = np.arange(1, np.int64(size/2) + size_blocks, size_blocks)
+    else: assert type(size_blocks) is list, 'incorrect size_blocks'
+
+    n_blocks = []
+    epsilon = []
+
+    for size_block in size_blocks:
+
+        n_block = np.int64(size/size_block)
+        
+        # a = 0 
+        # for i in range(n_block):
+        #     a += (np.mean(x[(size_block*i):(size_block*(i+1))]))**2
+        # 
+        # epsilon.append(np.sqrt((a/n_blocks[-1] - mean**2)/n_blocks[-1]))
+
+        block_averages = []
+        for i in range(n_block): block_averages.append(np.mean(x[(size_block*i):(size_block*(i+1))]))
+        block_averages = np.array(block_averages)
+
+        n_blocks.append(n_block)
+        epsilon.append(np.sqrt((np.mean(block_averages**2) - np.mean(block_averages)**2)/n_block))
+
+    # find the optimal epsilon: smooth the epsilon function and find the first time it decreases
+    kernel = np.ones(n_conv)/n_conv
+    smooth = np.convolve(epsilon, kernel, mode='same')
+    diff = np.ediff1d(smooth)
+    wh = np.where(diff < 0)
+    opt_epsilon = smooth[wh[0][0]]
+    
+    return mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks
