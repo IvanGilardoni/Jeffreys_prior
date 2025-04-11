@@ -8,7 +8,7 @@ import numpy as np
 # from basic_functions_gaussian import compute_depth, compute_depth_analytical, flatten, my_group_fun, loss_fun
 # from basic_functions_bayesian import compute_single, compute, run_Metropolis
 
-from basic_functions_gaussian import loss_fun, my_group_fun
+from basic_functions_gaussian import loss_fun, my_group_fun, compute_depth, compute_depth_analytical
 from basic_functions_bayesian import run_Metropolis
 
 #%% input values
@@ -51,6 +51,9 @@ pandas.DataFrame(list(infos.values()), index=list(infos.keys())).T.to_csv(subdir
 p0 = np.ones(n_frames)/n_frames
 g = rng_fixed.normal(0, sigma, size=n_frames)
 
+dV_num = compute_depth(n_frames, sigma, gexp, sigma_exp, alpha, delta_lambda=100).dV
+dV_th = compute_depth_analytical(n_frames, sigma, gexp, sigma_exp, alpha).dV
+
 def energy_function(x, p0, g, gexp, sigma_exp, alpha, if_jeffreys = False):
 
     out = loss_fun(x, p0, g, gexp, sigma_exp, alpha, if_cov=if_jeffreys)
@@ -73,7 +76,7 @@ def energy_function(x, p0, g, gexp, sigma_exp, alpha, if_jeffreys = False):
 
 #%%
 
-result_values = {}
+result_values = {'dV_num': dV_num, 'dV_th': dV_th}
 
 my_energy_function = lambda x : energy_function(x, p0, g, gexp, sigma_exp, alpha, False)
 
