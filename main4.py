@@ -52,7 +52,7 @@ p0 = np.ones(n_frames)/n_frames
 g = rng_fixed.normal(0, sigma, size=n_frames)
 
 dV_num = compute_depth(n_frames, sigma, gexp, sigma_exp, alpha, delta_lambda=100).dV
-dV_th = compute_depth_analytical(n_frames, sigma, gexp, sigma_exp, alpha).dV
+dV_th = np.min(compute_depth_analytical(n_frames, sigma, gexp, sigma_exp, alpha).dV)
 
 def energy_function(x, p0, g, gexp, sigma_exp, alpha, if_jeffreys = False):
 
