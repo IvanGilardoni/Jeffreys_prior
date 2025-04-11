@@ -21,7 +21,7 @@ sigma_exp = float(sys.argv[1])
 
 n_frames = np.int64(1e4)
 
-n_steps = np.int64(1e4)
+n_steps = np.int64(1e6)
 step_length = 5.
 
 seed = int(sys.argv[2])
@@ -31,6 +31,7 @@ dir_name = 'Metropolis_sampling'
 #%%
 
 rng = np.random.default_rng(seed)
+rng_fixed = np.random.default_rng(1)
 
 if not os.path.exists(dir_name):
     os.makedirs(dir_name)
@@ -48,7 +49,7 @@ pandas.DataFrame(list(infos.values()), index=list(infos.keys())).T.to_csv(subdir
 #%%
 
 p0 = np.ones(n_frames)/n_frames
-g = rng.normal(0, sigma, size=n_frames)
+g = rng_fixed.normal(0, sigma, size=n_frames)
 
 def energy_function(x, p0, g, gexp, sigma_exp, alpha, if_jeffreys = False):
 
