@@ -62,7 +62,7 @@ def loss_and_grad(lambdas, p0, g, gexp, sigma_exp, alpha, loss_grad_fun):
     loss_grad_value = loss_grad_fun(lambdas, p0, g, gexp, sigma_exp, alpha)
     return loss_value, loss_grad_value
 
-def build_perimeter(x0, dx, n_x = 100):
+def build_perimeter_old(x0, dx, n_x = 100):
 
     x_min = x0 - dx
     x_max = x0 + dx
@@ -75,6 +75,112 @@ def build_perimeter(x0, dx, n_x = 100):
     perimeter = np.hstack(perimeter)
 
     return perimeter
+
+
+
+def build_perimeter(x0, dx, n_x = 100):
+    """
+    Given a center `x0`, an array with half length of each side `dx` and the n. of steps for each side
+    `n_x`, build the perimeter.
+
+    Parameters
+    ----------
+    x0 : array_like
+        Numpy 1d. array with the central point.
+    dx : array_like
+        Numpy 1d. array with half length of each side.
+    n_x : int
+        Integer for the n. of steps along each side (equal for all the sides).
+    
+    Returns
+    -------
+    peri : array_like
+        Numpy 2d. array (M, N) with the perimeter (with M the n. of coordinates, namely, the dimensions).
+    """
+
+    x_min = x0 - dx
+    x_max = x0 + dx
+
+    scans = [np.linspace(x_min[i], x_max[i], n_x) for i in range(len(x_min))]
+
+    edges = []
+
+    for i in range(len(scans)):
+        arr = scans[:]
+        del arr[i]
+        edges.append(np.array(np.meshgrid(*arr)))
+        edges[-1] = edges[-1].reshape(len(x0) - 1, n_x**(len(x0) - 1))
+
+    peri = []
+
+    for i in range(len(scans)):
+        peri.append(np.insert(edges[i], i, scans[i][0]*np.ones(edges[i].shape[1])[None, :], axis=0))
+        peri.append(np.insert(edges[i], i, scans[i][-1]*np.ones(edges[i].shape[1])[None, :], axis=0))
+
+    peri = np.hstack(np.array(peri))
+
+    return peri
+
+
+
+def build_perimeter_old_long(x0, dx, n_x = 100):
+    """
+    Given a center `x0`, an array with half length of each side `dx` and the n. of steps for each side
+    `n_x`, build the perimeter.
+
+    Parameters
+    ----------
+    x0 : array_like
+        Numpy 1d. array with the central point.
+    dx : array_like
+        Numpy 1d. array with half length of each side.
+    n_x : int
+        Integer for the n. of steps along each side (equal for all the sides).
+    
+    Returns
+    -------
+    peri : array_like
+        Numpy 2d. array (M, N) with the perimeter (with M the n. of coordinates, namely, the dimensions).
+    """
+
+    x_min = x0 - dx
+    x_max = x0 + dx
+
+    """ 1. make a grid """
+    """ this is limited to 3 dimensions """
+    # scan = []
+    # for i in range(len(x0)):
+    #     scan.append(np.linspace(x_min[i], x_max[i], n_x))
+
+    # grid = []
+
+    # for x1 in scan[0]:
+    #     for x2 in scan[1]:
+    #         for x3 in scan[2]:
+    #             grid.append(np.array([x1, x2, x3]))
+
+    # grid = np.array(grid)
+
+    """ this is the same as the commented lines above but for generic dimensionality """
+    scan = [np.linspace(x_min[i], x_max[i], n_x) for i in range(len(x_min))]
+
+    grid = np.array(np.meshgrid(*scan))
+    grid = grid.reshape(len(x0), n_x**len(x0))
+
+    """ 2. remove inner elements to get the perimeter (boundary blocks) """ 
+    set_list = []
+
+    for i in range(len(x0)):
+        set_list.extend([np.where(grid[:, i] != scan[i][0])[0], np.where(grid[:, i] != scan[i][-1])[0]])
+
+    set_list = [set(list(s)) for s in set_list]
+    set_whc = set.intersection(*set_list)
+
+    list_wh = list(set(list(np.arange(len(grid)))) - set_whc)
+
+    peri = grid[list_wh]
+
+    return peri
 
 class compute_depth():
 
