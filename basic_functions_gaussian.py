@@ -22,11 +22,16 @@ def flatten(x, s, m = None):
     Given a list or a dictionary `x`, flatten the `m`-th element (if not `None`) of its key/attribute `s`.
     """
     if m is None:
-        if type(x) is dict: return [vars(x[n])[s] for n in x.keys()]
-        elif type(x) is list: return [vars(x[n])[s] for n in range(len(x))]
+        if type(x) is dict:
+            try: out = [vars(x[n])[s] for n in x.keys()]
+            except: out = [x[n][s] for n in x.keys()]
+        elif type(x) is list: out =[vars(x[n])[s] for n in range(len(x))]
     else:
-        if type(x) is dict: return [vars(x[n])[s][m] for n in x.keys()]
-        elif type(x) is list: return [vars(x[n])[s][m] for n in range(len(x))]
+        if type(x) is dict:
+            try: out = [vars(x[n])[s][m] for n in x.keys()]
+            except: out = [x[n][s][m] for n in x.keys()]
+        elif type(x) is list: out = [vars(x[n])[s][m] for n in range(len(x))]
+    return out
 
 def loss_fun(lambdas, p0, g, gexp, sigma_exp, alpha, if_return_all = False, if_cov = False):
     
@@ -184,7 +189,7 @@ def build_perimeter(x0, dx, n_x = 100):
     return peri
 
 class numerical_props(Result):  # old name: compute_depth
-    def __init__(self, n_frames, sigma : float or np.ndarray, gexp, sigma_exp, alpha, delta_lambda = 10,
+    def __init__(self, n_frames, sigma : float or np.ndarray, gexp, sigma_exp, alpha, delta_lambda = 500,
         n_perim = 100, if_scan = False):
         """
         Compute main properties of the posterior distribution, proportional to `np.exp(-loss_fun)`.
@@ -403,8 +408,8 @@ class analytical_props(Result):  # old name: compute_depth_analytical
         """
         super().__init__()
 
-        self.min_lambda = - gexp/(alpha*sigma_exp**2 + sigma**2)
-        self.min_avg = - self.min_lambda*sigma**2
+        self.min_lambda = -gexp/(alpha*sigma_exp**2 + sigma**2)
+        self.min_avg = -self.min_lambda*sigma**2
         self.min_dkl = 1/2*np.sum((sigma*self.min_lambda)**2)
         self.min_loss = 1/2*np.sum((self.min_avg/sigma_exp)**2) + alpha*self.min_dkl
 
@@ -418,7 +423,6 @@ class analytical_props(Result):  # old name: compute_depth_analytical
         self.lim_dkl = np.log(n_frames)
         self.lim_value = 1/2*self.lim_chi2 + alpha*self.lim_dkl
         self.dV = self.lim_value - self.min_loss
-
 
 class distances_nd():
 
