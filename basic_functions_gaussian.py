@@ -411,7 +411,7 @@ class analytical_props(Result):  # old name: compute_depth_analytical
         self.min_lambda = -gexp/(alpha*sigma_exp**2 + sigma**2)
         self.min_avg = -self.min_lambda*sigma**2
         self.min_dkl = 1/2*np.sum((sigma*self.min_lambda)**2)
-        self.min_loss = 1/2*np.sum((self.min_avg/sigma_exp)**2) + alpha*self.min_dkl
+        self.min_loss = 1/2*np.sum(((self.min_avg - gexp)/sigma_exp)**2) + alpha*self.min_dkl
 
         self.gbar = np.sqrt(2*np.log(n_frames)*np.sum(sigma**2))
         self.lim_chi2 = ((self.gbar - gexp)/sigma_exp)**2
