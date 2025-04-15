@@ -5,6 +5,8 @@ import jax.numpy as jnp
 from scipy.optimize import minimize
 from scipy.special import erf, erfinv
 
+from coretools import Result
+
 def my_erf(x):
     return erf(x/np.sqrt(2))
 
@@ -16,12 +18,15 @@ from basic_functions_bayesian import compute, compute_single
 #%%
 
 def flatten(x, s, m = None):
+    """
+    Given a list or a dictionary `x`, flatten the `m`-th element (if not `None`) of its key/attribute `s`.
+    """
     if m is None:
         if type(x) is dict: return [vars(x[n])[s] for n in x.keys()]
-        elif type(x) is list:return [vars(x[n])[s] for n in range(len(x))]
+        elif type(x) is list: return [vars(x[n])[s] for n in range(len(x))]
     else:
         if type(x) is dict: return [vars(x[n])[s][m] for n in x.keys()]
-        elif type(x) is list:return [vars(x[n])[s][m] for n in range(len(x))]
+        elif type(x) is list: return [vars(x[n])[s][m] for n in range(len(x))]
 
 def loss_fun(lambdas, p0, g, gexp, sigma_exp, alpha, if_return_all = False, if_cov = False):
     
@@ -75,53 +80,6 @@ def build_perimeter_old(x0, dx, n_x = 100):
     perimeter = np.hstack(perimeter)
 
     return perimeter
-
-
-
-def build_perimeter(x0, dx, n_x = 100):
-    """
-    Given a center `x0`, an array with half length of each side `dx` and the n. of steps for each side
-    `n_x`, build the perimeter.
-
-    Parameters
-    ----------
-    x0 : array_like
-        Numpy 1d. array with the central point.
-    dx : array_like
-        Numpy 1d. array with half length of each side.
-    n_x : int
-        Integer for the n. of steps along each side (equal for all the sides).
-    
-    Returns
-    -------
-    peri : array_like
-        Numpy 2d. array (M, N) with the perimeter (with M the n. of coordinates, namely, the dimensions).
-    """
-
-    x_min = x0 - dx
-    x_max = x0 + dx
-
-    scans = [np.linspace(x_min[i], x_max[i], n_x) for i in range(len(x_min))]
-
-    edges = []
-
-    for i in range(len(scans)):
-        arr = scans[:]
-        del arr[i]
-        edges.append(np.array(np.meshgrid(*arr)))
-        edges[-1] = edges[-1].reshape(len(x0) - 1, n_x**(len(x0) - 1))
-
-    peri = []
-
-    for i in range(len(scans)):
-        peri.append(np.insert(edges[i], i, scans[i][0]*np.ones(edges[i].shape[1])[None, :], axis=0))
-        peri.append(np.insert(edges[i], i, scans[i][-1]*np.ones(edges[i].shape[1])[None, :], axis=0))
-
-    peri = np.hstack(np.array(peri))
-
-    return peri
-
-
 
 def build_perimeter_old_long(x0, dx, n_x = 100):
     """
@@ -182,36 +140,117 @@ def build_perimeter_old_long(x0, dx, n_x = 100):
 
     return peri
 
-class compute_depth():
+def build_perimeter(x0, dx, n_x = 100):
+    """
+    Given a center `x0`, an array with half length of each side `dx` and the n. of steps for each side
+    `n_x`, build the perimeter.
 
-    def __init__(self, n, sigma : float or np.ndarray, gexp, sigma_exp, alpha, delta_lambda = 10, n_perim = 100, if_scan = False):
-        """sigma can also be g, in this way it is fixed (given as input), without randomness"""
+    Parameters
+    ----------
+    x0 : array_like
+        Numpy 1d. array with the central point.
+    dx : array_like
+        Numpy 1d. array with half length of each side.
+    n_x : int
+        Integer for the n. of steps along each side (equal for all the sides).
     
-        if (type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1):
-            g = np.random.normal(0, sigma, n)
-            g = np.array([g])  # to make the same for one or more observables
+    Returns
+    -------
+    peri : array_like
+        Numpy 2d. array (M, N) with the perimeter (with M the n. of coordinates, namely, the dimensions).
+    """
+
+    x_min = x0 - dx
+    x_max = x0 + dx
+
+    scans = [np.linspace(x_min[i], x_max[i], n_x) for i in range(len(x_min))]
+
+    edges = []
+
+    for i in range(len(scans)):
+        arr = scans[:]
+        del arr[i]
+        edges.append(np.array(np.meshgrid(*arr)))
+        edges[-1] = edges[-1].reshape(len(x0) - 1, n_x**(len(x0) - 1))
+
+    peri = []
+
+    for i in range(len(scans)):
+        peri.append(np.insert(edges[i], i, scans[i][0]*np.ones(edges[i].shape[1])[None, :], axis=0))
+        peri.append(np.insert(edges[i], i, scans[i][-1]*np.ones(edges[i].shape[1])[None, :], axis=0))
+
+    peri = np.hstack(np.array(peri))
+
+    return peri
+
+class numerical_props(Result):  # old name: compute_depth
+    def __init__(self, n_frames, sigma : float or np.ndarray, gexp, sigma_exp, alpha, delta_lambda = 10,
+        n_perim = 100, if_scan = False):
+        """
+        Compute main properties of the posterior distribution, proportional to `np.exp(-loss_fun)`.
+        The reference probability distribution is assumed to be uniform.
         
-        elif sigma.shape[0] == 2:
+        Parameters
+        ----------
+        n_frames : int
+            Integer variable for the total n. of frames.
+        
+        sigma : float or array_like
+            The standard deviation of the observable (or the array of them), used to generate the array of values
+            for the observables `g` as a (multivariate) normal distribution centered in `np.zeros(n_frames)`.
+            Alternatively, if `len(sigma) == n_frames`, then `sigma` is rather the `g` array of observables
+            itself, without random generation of it.
+        
+        gexp : float or array_like
+            The experimental values of the observables.
+
+        sigma_exp : float or array_like
+            The estimated experimental errors for `gexp`.
+        
+        alpha : float
+            The hyperparameter value.
+        
+        delta_lambda : float
+
+        n_perim : int
+
+        if_scan : bool
+            Boolean variable, if True then compute the loss in the whole grid.
+        """
+        
+        super().__init__()
+
+        if (type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1):
+            g = np.random.normal(0, sigma, n_frames)
+            g = np.array([g])  # to have the same shape for one or more observables
+        elif sigma.shape[0] == n_frames: g = sigma.T
+        elif (len(sigma.shape) == 2) and (sigma.shape[1] == n_frames): g = sigma
+        else:
             if len(sigma.shape) == 1: cov = np.diag(sigma**2)
             else: cov = sigma
-            g = np.random.multivariate_normal(mean=(0, 0), cov=cov, size=n).T
-
-        else:
-            assert sigma.shape[1] == n
-            g = sigma
+            g = np.random.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=cov, size=n_frames).T
 
         self.g = g
+        """ The 2d. `numpy.ndarray` with the values of the observables, whose shape is `(M, N)` where `M` is
+        the n. of observables and `N = n_frames`. """
 
-        p0 = np.ones(n)/n
+        p0 = np.ones(n_frames)/n_frames
+        # The 1d. `numpy.ndarray` with the reference distribution, assumed to be uniform.
 
-        self.mini = minimize(loss_and_grad, jnp.zeros(g.shape[0]), args=(p0, g, gexp, sigma_exp, alpha, loss_grad_fun), jac=True, method='BFGS')
+        self.mini = minimize(loss_and_grad, np.zeros(g.shape[0]), args=(p0, g, gexp, sigma_exp, alpha, loss_grad_fun), jac=True, method='BFGS')
+        """ The result of the minimization `scipy.optimize.minimize` of the `loss_fun` (through `loss_and_grad`)
+        with input parameters previously defined (`p0, g, gexp, sigma_exp, alpha`). """
 
         self.min_lambda = self.mini.x
+        """ The 1d. `numpy.ndarray` with the point of minimum of the loss function, determined by the minimization. """
+        
         self.min_loss = self.mini.fun
+        """ The min. value of the loss function, determined by the minimization. """
 
         out = loss_fun(self.min_lambda, p0, g, gexp, sigma_exp, alpha, if_return_all=True)
 
         self.min_avg = np.einsum('ij,j', g, out[3])
+        """ The 1d. `numpy.ndarray` with the average values of the observables in the point of min. of `loss_fun`. """
 
         if g.shape[0] == 1:
 
@@ -254,29 +293,41 @@ class compute_depth():
                 self.scan_lambda_min = self.scan_lambdas[np.argmin(results['lossf'])]
                 self.scan_avg_min = results['av_g'][np.argmin(results['lossf'])]
 
-        elif g.shape[0] == 2:
+        # elif g.shape[0] == 2:
+        else:
 
             perimeter = build_perimeter(self.min_lambda, delta_lambda, n_perim)
             
-            out = []
+            losses = []
 
             for i in range(perimeter.shape[1]):
-                out.append(loss_fun(perimeter[:, i], p0, g, gexp, sigma_exp, alpha, True))
+                losses.append(loss_fun(perimeter[:, i], p0, g, gexp, sigma_exp, alpha))
 
-            losses = np.array([out[i][0] for i in range(len(out))])
-            wh = np.argwhere(losses == np.min(losses))[0][0]
+            self.perim_loss = losses
+            """ Values of the loss function along the discretized perimeter. """
 
-            self.perim_losses = losses
-            
+            wh = np.argmin(losses)            
             self.lim_loss_num = np.min(losses)
-            self.lim_chi2 = out[wh][1]
-            self.lim_dkl = out[wh][2]
-            self.lim_p = out[wh][3]
+            """ Min. value of the loss function along the discretized perimeter. """
+
+            res = loss_fun(perimeter[:, wh], p0, g, gexp, sigma_exp, alpha, True)
+            self.lim_chi2 = res[1]
+            """ Value of the chi2 in correspondence of the min. loss along the perimeter. """
+            
+            self.lim_dkl = res[2]
+            """ Value of the Kullback-Leibler divergence in crorrespondence of the min. loss
+            along the perimeter. """
+            
+            self.lim_p = res[3]
+            """ Reweighted distribution in correspondence of the min. loss along the perimeter. """
+            
             self.lim_g = g[:, np.where(self.lim_p == np.max(self.lim_p))[0][0]]
+            """ Values of the observables """
 
             self.dV = self.lim_loss_num - self.min_loss
+            """ Difference between min. loss value along the perimeter and global min. of the loss. """
 
-            if if_scan:
+            if if_scan:  # TO BE FIXED!!
                 n_lambda = 50
                 lambdas = [np.linspace(self.min_lambda[0] - delta_lambda, self.min_lambda[0] + delta_lambda, n_lambda),
                     np.linspace(self.min_lambda[1] - delta_lambda, self.min_lambda[1] + delta_lambda, n_lambda)]
@@ -292,21 +343,82 @@ class compute_depth():
 
                 self.results = out
 
-class compute_depth_analytical():
+class analytical_props(Result):  # old name: compute_depth_analytical
+    def __init__(self, n_frames, sigma, gexp, sigma_exp, alpha):
+        """
+        Compute main analytical properties of the posterior distribution, proportional to `np.exp(-loss_fun)`.
+        The reference probability distribution P0 is assumed to be Gaussian centered in zero and with
+        variance-covariance matrix assumed to be diagonal with `C_ii = sigma_i**2`.
 
-    def __init__(self, n, sigma, gexp, sigma_exp, alpha):
+        Parameters
+        ----------
+        n_frames : int
+            The total n. of frames.
+        
+        sigma : array_like
+            The standard deviations of the Gaussian distribution for the values of the observables;
+            the variance-covariance matrix is diagonal (namely, zero covariance).
 
-        self.lambda_min = -gexp/(alpha*sigma_exp**2 + sigma**2)
-        self.avg_min = -self.lambda_min*sigma**2
-        # chi2 = 1/2*((avg_min - gexp)/sigma_exp)**2
-        # self.loss_min = 1/2*(alpha*gexp**2)*(alpha + sigma**2)/(alpha*sigma_exp**2 + sigma**2)**2
-        self.loss_min = 1/2*((self.avg_min - gexp)/sigma_exp)**2 + 1/2*alpha*(self.lambda_min*sigma)**2
+        gexp : float or array_like
+            The experimental values for the observables.
 
-        self.gbar = sigma*my_inv_erf(1 - 2/n)
+        sigma_exp : float or array_like
+            The estimated experimental uncertainty (`float` variable for a single observable,
+            1d. `numpy.ndarray` otherwise).
+        
+        alpha : float
+            The value for the hyperparameter.
+
+        Return
+        ------
+        min_lambda, min_avg, min_dkl, min_loss : array_like
+            The `numpy.ndarray` variables for the properties of the loss function in its point of min:
+            the point of min. itself `min_lambda`, the average values of the observables `min_avg`,
+            the Kullback-Leibler divergence `min_dkl`, the value of the loss f. `min_loss`.
+        
+        gbar : float
+            The estimated value for the furthest point from the center of `n_frames` points sampled from
+            the Gaussian distrib. defined by `sigma` as above (zero mean, variance-covariance matrix diagonal).
+        
+        gbar_1d : float
+            Defined if there is just a single observable, it is an estimate (given by the inverse erf)
+            of the furthest point from the center of `n_frames` points sampled from the 1d Gaussian distrib.
+            with zero mean and standard deviation `sigma`.
+
+        lim_chi2 : float
+            The estimated value for the asymptotic limit of the chi2, computed from `gbar`
+            (or from `gbar_1d` if present).
+
+        lim_dkl : float
+            The estimated value for the asymptotic limit of the Kullback-Leibler divergence,
+            given by `np.log(n_frames)`.
+        
+        lim_value : float
+            The estimated value for the asymptotic limit of the loss function,
+            given by `1/2*lim_chi2 + alpha*lim_dkl`.
+        
+        dV : float
+            The estimated value for the height of the barrier (potential energy difference),
+            computed as `lim_value - min_loss`.
+        """
+        super().__init__()
+
+        self.min_lambda = - gexp/(alpha*sigma_exp**2 + sigma**2)
+        self.min_avg = - self.min_lambda*sigma**2
+        self.min_dkl = 1/2*np.sum((sigma*self.min_lambda)**2)
+        self.min_loss = 1/2*np.sum((self.min_avg/sigma_exp)**2) + alpha*self.min_dkl
+
+        self.gbar = np.sqrt(2*np.log(n_frames)*np.sum(sigma**2))
         self.lim_chi2 = ((self.gbar - gexp)/sigma_exp)**2
-        self.lim_dkl = np.log(n)
+
+        if (type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1):
+            self.gbar_1d = sigma*my_inv_erf(1 - 2/n_frames)
+            self.lim_chi2 = ((self.gbar_1d - gexp)/sigma_exp)**2
+
+        self.lim_dkl = np.log(n_frames)
         self.lim_value = 1/2*self.lim_chi2 + alpha*self.lim_dkl
-        self.dV = self.lim_value - self.loss_min
+        self.dV = self.lim_value - self.min_loss
+
 
 class distances_nd():
 
