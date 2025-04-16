@@ -460,27 +460,79 @@ class distances_nd():
         self.ds2 = np.linalg.norm(g[:, wh2] - gexp)
         """the distance between the selected frame and gexp"""
 
-def my_group_fun(x, value, tolerance):
-    """Given a numpy 1d array `x` and two float variables `value` and `tolerance`,
-    find where `x` gets stuck into `value +/- tolerance`. Namely, return `my_group`, containing
-    the position of the first frame where `x` is stuck there and `how_many` with the n. of consecutive
-    frames `x` stays there."""
-
-    wh = np.where(x > value - tolerance)
-    wh2 = np.where(x < value + tolerance)
-    wh = np.intersect1d(wh, wh2)
+def my_group_fun(x, tolerance, if_diff = True, threshold = None, value = None):
+    """
+    Given a numpy 1d array `x` and two float variables `value` and `tolerance`, find where `x` gets stuck
+    into `value +/- tolerance` (if not `if_diff`). Namely, return `my_group`, containing the position of
+    the first frame where `x` is stuck there and `how_many` with the n. of consecutive frames `x` stays there.
     
-    my_group = []
-    how_many = []
+    If `if_diff`, then consider `np.ediff1d(x)` rather than `x` and find where it is lower than a threshold
+    `tolerance` (neglect `value`).
 
-    my_group.append(wh[0])
-    how_many.append(1)
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The numpy 1d. array whereof we compute the blocks of consecutive close values.
+    
+    tolerance : float
+        The value for the tolerance of being inside a region (either for `x` or `np.ediff1d(x)`,
+        depending on `if_diff`).
+
+    if_diff : bool
+        Boolean, if True than consider the difference, otherwise `x` itself to be in the desired region.
+    
+    threshold : optional, int
+        If not None, it is the integer min. n. of consecutive frames for the blocks.
+    
+    value : optional, float
+        If not None, it is the central value of the region we are interested in,
+        defined by `value +- tolerance` (if not `if_diff`).
+
+    Return
+    ------
+    whs_first : numpy.ndarray
+        Numpy 1d. array with the first element of each block of consecutive frames.
+    
+    whs_len : numpy.ndarray
+        Numpy 1d. array with the length of each block of consecutive frames.
+    
+    whs : list
+        List of blocks of consecutive frames.
+    
+    dif : optional, numpy.ndarray
+        If `if_diff`, return the Numpy 1d. array with the absolute values of `np.ediff1d(x)`.
+    """
+
+    assert (value is None) or (not if_diff), 'error: choose among value or if_diff'
+
+    if not if_diff:
+        wh = np.where(np.abs(x - value) < tolerance)[0]
+        # equivalent to:
+        # wh = np.where(x > value - tolerance)
+        # wh2 = np.where(x < value + tolerance)
+        # wh = np.intersect1d(wh, wh2)
+    else:
+        dif = np.abs(np.ediff1d(x))
+        wh = np.where(dif < tolerance)[0]
+
+    whs = []  # wh grouped by consecutive values
+
+    whs.append([wh[0]])
 
     for i in range(len(wh) - 1):
-        if (wh[i + 1] != wh[i] + 1):
-            my_group.append(wh[i + 1])
-            how_many.append(1)
-        else:
-            how_many[-1] += 1
+        if (wh[i + 1] != wh[i] + 1): whs.append([wh[i + 1]])
+        else: whs[-1].append(wh[i + 1])
+    
+    whs_first = [it[0] for it in whs]  # first element of each item in whs (first frame in each consecutive block)
+    whs_len = [len(it) for it in whs]  # how many elements in each consecutive block
 
-    return my_group, how_many
+    if threshold is not None:
+        wh2 = np.argwhere(np.array(whs_len) > threshold)[:, 0]
+        whs = [whs[i] for i in wh2]
+        whs_first = np.array(whs_first)[wh2]
+        whs_len = np.array(whs_len)[wh2]
+
+    if not if_diff:
+        return whs_first, whs_len, whs
+    else:
+        return whs_first, whs_len, whs, dif
