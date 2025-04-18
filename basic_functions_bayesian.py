@@ -274,7 +274,6 @@ def compute(my_lambdas, P0, g, gexp, sigma, alpha):
 
     Parameters:
     -----------
-
     my_lambdas : numpy.ndarray or tuple
         In the 1d case, `my_lambdas` is a 1d numpy array
     

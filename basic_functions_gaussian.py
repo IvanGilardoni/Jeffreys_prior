@@ -398,13 +398,13 @@ class analytical_props(Result):  # old name: compute_depth_analytical
             The estimated value for the asymptotic limit of the Kullback-Leibler divergence,
             given by `np.log(n_frames)`.
         
-        lim_value : float
+        lim_loss : float
             The estimated value for the asymptotic limit of the loss function,
             given by `1/2*lim_chi2 + alpha*lim_dkl`.
         
         dV : float
             The estimated value for the height of the barrier (potential energy difference),
-            computed as `lim_value - min_loss`.
+            computed as `lim_loss - min_loss`.
         """
         super().__init__()
 
@@ -421,8 +421,8 @@ class analytical_props(Result):  # old name: compute_depth_analytical
             self.lim_chi2 = ((self.gbar_1d - gexp)/sigma_exp)**2
 
         self.lim_dkl = np.log(n_frames)
-        self.lim_value = 1/2*self.lim_chi2 + alpha*self.lim_dkl
-        self.dV = self.lim_value - self.min_loss
+        self.lim_loss = 1/2*self.lim_chi2 + alpha*self.lim_dkl
+        self.dV = self.lim_loss - self.min_loss
 
 class distances_nd():
 
@@ -536,3 +536,20 @@ def my_group_fun(x, tolerance, if_diff = True, threshold = None, value = None):
         return whs_first, whs_len, whs
     else:
         return whs_first, whs_len, whs, dif
+
+class Group_points(Result):
+    def __init__(self, x, tolerance, if_diff = True, threshold = None, value = None):
+        super().__init__()
+
+        out = my_group_fun(x, tolerance, if_diff=if_diff, threshold=threshold, value=value)
+        
+        self.whs_first = out[0]
+        self.whs_len = out[1]
+        self.whs = out[2]
+        if if_diff: self.dif = out[3]
+
+        self.whs_flat = [s2 for s in self.whs for s2 in s]
+
+    # def flatten_whs(whs):
+    #     return [s2 for s in whs for s2 in s]
+
