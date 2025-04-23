@@ -20,7 +20,7 @@ kT = float(sys.argv[5])
 if if_langevin: gamma = 1e-1
 else: dx = 1e-1
 
-dir_name = 'quartic'
+dir_name = '../quartic'
 
 #%%
 # define the quartic potential
