@@ -39,7 +39,7 @@ if not os.path.exists(dir_name):
 
 id_code = datetime.datetime.now().strftime('%d_%H_%M_%S_%f')
 subdir_name = dir_name + '/' + id_code
-os.makedir(subdir_name)
+os.makedirs(subdir_name)
 
 traj = results[depth][seed][0][0]
 np.save(subdir_name + '/traj.npy', traj)
