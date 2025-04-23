@@ -1,7 +1,8 @@
 import numpy as np
 import jax
 
-jax._src.xla_bridge.backends()
+try : jax._src.xla_bridge.backends()
+except : None
 
 import jax.numpy as jnp
 
