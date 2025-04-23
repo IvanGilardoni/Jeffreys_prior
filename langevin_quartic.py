@@ -11,6 +11,10 @@ from Functions.basic_functions_bayesian import run_Metropolis, langevin_sampling
 #%%
 
 if_langevin = int(sys.argv[1])
+
+if if_langevin == 0: if_langevin = True
+elif if_langevin == 1: if_langevin = False
+
 starting_point = float(sys.argv[2])
 n_steps = int(sys.argv[3])
 seed = int(sys.argv[4])
