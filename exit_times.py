@@ -41,13 +41,13 @@ id_code = datetime.datetime.now().strftime('%d_%H_%M_%S_%f')
 subdir_name = dir_name + '/' + id_code
 os.makedirs(subdir_name)
 
-traj = results[depth][seed][0][0]
+traj = results[0][0]
 np.save(subdir_name + '/traj.npy', traj)
 
-ene = results[depth][seed][0][1]
+ene = results[0][1]
 np.save(subdir_name + '/ene.npy', traj)
 
-np.save(subdir_name + 'whs_first.npy', results[depth][seed][1].whs_first)
-np.save(subdir_name + 'whs_len.npy', results[depth][seed][1].whs_len)
-np.save(subdir_name + 'whs_flat.npy', np.array(results[depth][seed][1].whs_flat))
+np.save(subdir_name + 'whs_first.npy', results[1].whs_first)
+np.save(subdir_name + 'whs_len.npy', results[1].whs_len)
+np.save(subdir_name + 'whs_flat.npy', np.array(results[1].whs_flat))
 
