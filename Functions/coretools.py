@@ -10,7 +10,7 @@ import re
 from typing import List, Optional
 
 import numpy as np
-import yaml
+# import yaml
 
 def ensure_np_array(arg) -> Optional[np.ndarray]:
     """Convert arg to np.array if necessary."""
@@ -204,8 +204,8 @@ def config_path(path: Optional[os.PathLike] = None):
         path = pathlib.PurePath(os.environ["HOME"]+"/.bussilabrc")
     return path
 
-def config(path: Optional[os.PathLike] = None):
-    with open(config_path(path)) as rc:
-        return yaml.load(rc,Loader=yaml.BaseLoader)
+# def config(path: Optional[os.PathLike] = None):
+#     with open(config_path(path)) as rc:
+#         return yaml.load(rc,Loader=yaml.BaseLoader)
 
 
