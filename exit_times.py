@@ -47,7 +47,7 @@ np.save(subdir_name + '/traj.npy', traj)
 ene = results[0][1]
 np.save(subdir_name + '/ene.npy', traj)
 
-np.save(subdir_name + 'whs_first.npy', results[1].whs_first)
-np.save(subdir_name + 'whs_len.npy', results[1].whs_len)
-np.save(subdir_name + 'whs_flat.npy', np.array(results[1].whs_flat))
+np.save(subdir_name + '/whs_first.npy', results[1].whs_first)
+np.save(subdir_name + '/whs_len.npy', results[1].whs_len)
+np.save(subdir_name + '/whs_flat.npy', np.array(results[1].whs_flat))
 
