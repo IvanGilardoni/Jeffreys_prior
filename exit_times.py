@@ -17,7 +17,7 @@ n_steps = int(sys.argv[3])
 
 #%%
 
-my_energy_function_simple = lambda x : -depth*np.exp(-x**2)
+my_energy_function_simple = lambda x : -depth*jnp.exp(-x**2)
 
 sampling_pars = {'n_steps': n_steps, 'starting_point': np.ones(1),
     'which_sampling': 'Langevin'}
