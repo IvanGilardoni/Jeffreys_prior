@@ -1,6 +1,6 @@
 """ Distribution of the exit times from a simple quadratic well """
 
-import sys, os, datetime
+import sys, os, datetime, pandas
 import numpy as np
 # import jax
 import jax.numpy as jnp
@@ -17,7 +17,8 @@ n_steps = int(sys.argv[3])
 
 #%%
 
-my_energy_function_simple = lambda x : -depth*jnp.exp(-x**2)
+energy_fun_str = '-depth*jnp.exp(-x**2)'
+my_energy_function_simple = lambda x : eval(energy_fun_str)
 
 sampling_pars = {'n_steps': n_steps, 'starting_point': np.ones(1),
     'which_sampling': 'Langevin'}
@@ -45,9 +46,16 @@ traj = results[0][0]
 np.save(subdir_name + '/traj.npy', traj)
 
 ene = results[0][1]
-np.save(subdir_name + '/ene.npy', traj)
+np.save(subdir_name + '/ene.npy', ene)
 
 np.save(subdir_name + '/whs_first.npy', results[1].whs_first)
 np.save(subdir_name + '/whs_len.npy', results[1].whs_len)
 np.save(subdir_name + '/whs_flat.npy', np.array(results[1].whs_flat))
+
+pars_dict = {'depth': depth, 'seed': seed, 'energy_fun': energy_fun_str}
+pars_dict.update(sampling_pars)
+pars_dict.update(group_pars)
+
+pandas.DataFrame(list(pars_dict.values()), index=list(pars_dict.keys())).T.to_csv(subdir_name + '/pars', index=False)
+
 
