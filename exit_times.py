@@ -33,7 +33,7 @@ results = sample_and_group(my_energy_function_simple, **sampling_pars, seed=seed
 
 #%%
 
-dir_name = 'exit_times'
+dir_name = 'Metropolis_exit_times'
 
 if not os.path.exists(dir_name):
     os.makedirs(dir_name)
