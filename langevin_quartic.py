@@ -1,6 +1,6 @@
 """ Langevin (or Metropolis) simulation of a quartic potential """
 
-import sys, os, datetime
+import sys, os, datetime, pandas
 import numpy as np
 # import jax
 import jax.numpy as jnp
@@ -24,7 +24,10 @@ dir_name = 'quartic'
 
 #%%
 # define the quartic potential
-quartic_potential = lambda x : 1/30*(0.2*x**4 - 4*x**2 + 2*x)
+
+fun_string = '1/30*(0.2*x**4 - 4*x**2 + 2*x)'
+quartic_potential = lambda x : eval(fun_string)
+# quartic_potential = lambda x : 1/30*(0.2*x**4 - 4*x**2 + 2*x)
 
 starting_point = starting_point*np.ones(1)
 
@@ -43,3 +46,13 @@ id_code = datetime.datetime.now().strftime('%d_%H_%M_%S_%f')
 
 np.save(dir_name + '/' + id_code + '_traj.npy', out_sim[0])
 np.save(dir_name + '/' + id_code + '_ene.npy', out_sim[1])
+
+#%% save parameters
+
+pars_dict = {'energy_fun': fun_string, 'if_langevin': if_langevin, 'starting_point': starting_point,
+    'n_steps': n_steps, 'seed': seed, 'kT': kT}
+
+if if_langevin: pars_dict['gamma'] = gamma
+else: pars_dict['dx'] = dx
+
+pandas.DataFrame(list(pars_dict.values()), index=list(pars_dict.keys())).T.to_csv(dir_name + '/' + id_code + '_pars', index=False)
