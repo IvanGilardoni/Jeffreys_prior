@@ -20,9 +20,9 @@ n_steps = int(sys.argv[3])
 energy_fun_str = '-depth*jnp.exp(-x**2)'
 my_energy_function_simple = lambda x : eval(energy_fun_str)
 
-sampling_pars = {'n_steps': n_steps, 'starting_point': np.ones(1),
-    'which_sampling': 'Langevin'}
-    # 'which_sampling': 'Metropolis', 'dx': 0.05}
+sampling_pars = {'n_steps': n_steps, 'starting_point': np.ones(1), 'kT': 1.,
+    # 'which_sampling': 'Langevin'}
+    'which_sampling': 'Metropolis', 'dx': 0.05}
 
 group_pars = {'if_diff': False, 'threshold': 50, 'value': 0.}
 # group_pars = {'threshold': 200}

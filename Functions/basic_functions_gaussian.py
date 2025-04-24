@@ -566,7 +566,7 @@ class Group_points(Result):
 def sample_and_group(my_energy_function, *,
     # parameters for the sampling algorithm:
     starting_point = np.zeros(1), which_sampling = 'Langevin', n_steps = int(1e4), dx = None,
-    i_print = 2000, seed = 1,
+    i_print = 2000, seed = 1, kT = 1.,
     # parameters for the Group_points function:
     tolerance = 0.05, if_diff = True, threshold = 50, value = None):
     """
@@ -591,9 +591,9 @@ def sample_and_group(my_energy_function, *,
 
     if which_sampling == 'Metropolis':
         out_sampling = run_Metropolis(starting_point, dx, my_energy_function, n_steps=n_steps,
-            i_print=i_print, seed=seed)
+            i_print=i_print, seed=seed, kT=kT)
     elif which_sampling == 'Langevin':
-        out_sampling = langevin_sampling(my_energy_function, starting_point, n_steps, seed=seed)
+        out_sampling = langevin_sampling(my_energy_function, starting_point, n_steps, seed=seed, kT=kT)
 
     # out_sampling[1] is the energy
     gp = Group_points(out_sampling[1], tolerance=tolerance, if_diff=if_diff, threshold=threshold,
