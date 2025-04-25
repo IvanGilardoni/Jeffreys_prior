@@ -327,7 +327,7 @@ def compute(my_lambdas, P0, g, gexp, sigma, alpha):
     else: return None
 
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
-    n_steps = 100, seed = 1, i_print = 100):
+    n_steps = 100, seed = 1, i_print = 100, if_tqdm = True):
     """
     This function runs a Metropolis sampling algorithm.
     
@@ -429,7 +429,10 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     quantities.append([])
     quantities[-1] = q0
 
-    for i_step in tqdm(range(n_steps)):
+    counter = range(n_steps)
+    if if_tqdm: counter = tqdm(counter)
+
+    for i_step in counter:
 
         x_try = +proposal(x0_)  # proposal['fun'](x0_, *proposal['args'])
 
@@ -466,7 +469,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     else: return np.array(traj), np.array(ene), av_alpha, np.array(quantities)
 
 def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : float = 1e-1,
-    dt : float = 5e-3, kT : float = 1., seed : int = 1):
+    dt : float = 5e-3, kT : float = 1., seed : int = 1, if_tqdm: bool = True):
     """
     Perform a Langevin sampling of `energy_fun` at temperature `kT` (with Euler-Maruyama scheme).
     
@@ -517,7 +520,10 @@ def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : floa
     ene_list.append(jax_energy_fun(x))
     force_list.append(force)
 
-    for i in tqdm(range(n_iter)):
+    counter = range(n_iter)
+    if if_tqdm: counter = tqdm(counter)
+    
+    for i in counter:
         r = rng.normal(size=len(x))
         x += gamma*force*dt + step_width*r
         force = -grad(x)
