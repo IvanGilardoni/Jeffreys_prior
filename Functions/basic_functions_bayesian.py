@@ -132,6 +132,7 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
             density = np.prod(np.diag(triang))
         except:
             density = np.sqrt(np.linalg.det(metric))
+            if np.isnan(density): print('density is NaN because metric has been evaluated as ', metric)
 
         return density, metric
 
@@ -327,7 +328,7 @@ def compute(my_lambdas, P0, g, gexp, sigma, alpha):
     else: return None
 
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
-    n_steps = 100, seed = 1, i_print = 100, if_tqdm = True):
+    n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True):
     """
     This function runs a Metropolis sampling algorithm.
     
@@ -461,7 +462,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         quantities.append([])
         quantities[-1] = q0
 
-        if np.mod(i_step, i_print) == 0: print(i_step)
+        if (not if_tqdm) and (np.mod(i_step, i_print) == 0): print(i_step)
 
     av_alpha = av_alpha/n_steps
     

@@ -194,7 +194,7 @@ def build_perimeter(x0, dx, n_x = 100):
 
 class numerical_props(Result):  # old name: compute_depth
     def __init__(self, n_frames, sigma : float or np.ndarray, gexp, sigma_exp, alpha, delta_lambda = 500,
-        n_perim = 100, if_scan = False):
+        n_perim = 100, if_scan = False, seed = None):
         """
         Compute main properties of the posterior distribution, proportional to `np.exp(-loss_fun)`.
         The reference probability distribution is assumed to be uniform.
@@ -225,19 +225,25 @@ class numerical_props(Result):  # old name: compute_depth
 
         if_scan : bool
             Boolean variable, if True then compute the loss in the whole grid.
+
+        seed : int
+            Seed (random state) for random generator.
         """
         
         super().__init__()
 
+        if seed is None: seed = np.random.randint(int(1e6))
+        rng = np.random.default_rng(seed=seed)
+
         if (type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1):
-            g = np.random.normal(0, sigma, n_frames)
+            g = rng.normal(0, sigma, n_frames)
             g = np.array([g])  # to have the same shape for one or more observables
         elif sigma.shape[0] == n_frames: g = sigma.T
         elif (len(sigma.shape) == 2) and (sigma.shape[1] == n_frames): g = sigma
         else:
             if len(sigma.shape) == 1: cov = np.diag(sigma**2)
             else: cov = sigma
-            g = np.random.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=cov, size=n_frames).T
+            g = rng.multivariate_normal(mean=np.zeros(cov.shape[0]), cov=cov, size=n_frames).T
 
         self.g = g
         """ The 2d. `numpy.ndarray` with the values of the observables, whose shape is `(M, N)` where `M` is
@@ -353,7 +359,7 @@ class numerical_props(Result):  # old name: compute_depth
                 self.results = out
 
 class analytical_props(Result):  # old name: compute_depth_analytical
-    def __init__(self, n_frames, sigma, gexp, sigma_exp, alpha):
+    def __init__(self, n_frames, sigma, gexp, sigma_exp, alpha, if_inv_erf = True):
         """
         Compute main analytical properties of the posterior distribution, proportional to `np.exp(-loss_fun)`.
         The reference probability distribution P0 is assumed to be Gaussian centered in zero and with
@@ -377,6 +383,10 @@ class analytical_props(Result):  # old name: compute_depth_analytical
         
         alpha : float
             The value for the hyperparameter.
+
+        if_inv_erf : bool
+            Boolean variable, if True use the inverse error function (rather than `\sqrt \log N`
+            to estimate `gbar`) - possible for single observable only. Default value `if_inv_erf = True`.
 
         Return
         ------
@@ -420,7 +430,7 @@ class analytical_props(Result):  # old name: compute_depth_analytical
         self.gbar = np.sqrt(2*np.log(n_frames)*np.sum(sigma**2))
         self.lim_chi2 = ((self.gbar - gexp)/sigma_exp)**2
 
-        if (type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1):
+        if if_inv_erf and ((type(sigma) is float) or (type(sigma) is np.ndarray and len(sigma.shape) == 1 and sigma.shape[0] == 1)):
             self.gbar_1d = sigma*my_inv_erf(1 - 2/n_frames)
             self.lim_chi2 = ((self.gbar_1d - gexp)/sigma_exp)**2
 
