@@ -544,7 +544,7 @@ def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : floa
 
     return traj, np.array(ene_list), force_list, check
 
-def block_analysis(x, size_blocks, n_conv = 50):
+def block_analysis(x, size_blocks = None, n_conv = 50):
     """
     This function performs the block analysis of a (correlated) time series `x`, cycling over different block sizes.
     It includes also a numerical search of the optimal estimated error `epsilon`, by smoothing `epsilon` and searching
