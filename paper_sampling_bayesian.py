@@ -161,7 +161,7 @@ if alpha is not None:
         
         return energy, av_g
 
-    energy_function = {'fun': energy_fun_ER, 'args': ([if_Jeffreys])}
+    energy_function = lambda x : energy_fun_ER(x, if_Jeffreys)
 
 else:
 
@@ -188,7 +188,7 @@ else:
         
         return energy, av_g
 
-    energy_function = {'fun': energy_fun_FFF, 'args': ([if_Jeffreys])}
+    energy_function = lambda x : energy_fun_FFF(x, if_Jeffreys)
 
 sampling = run_Metropolis(x0, proposal_full, energy_function, n_steps=n_steps)
 
