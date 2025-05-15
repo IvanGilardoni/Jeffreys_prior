@@ -156,7 +156,7 @@ if alpha is not None:
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
-            measure, cov = local_density(data.mol[name_mol].g, out.weights_new[name_mol], if_cholesky=True)
+            measure, cov = local_density(data.mol[name_mol].g, out.weights_new[name_mol])
             energy -= np.log(measure)
         
         return energy, av_g
