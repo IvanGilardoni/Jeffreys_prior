@@ -45,7 +45,7 @@ n_steps = int(sys.argv[7])  # n. of steps in the Metropolis sampling
 #%% 1. load data
 
 infos = {'global': {
-    'path_directory': '../../loss_function_complete/DATA',
+    'path_directory': '../loss_function_complete/DATA',
     'system_names': ['AAAA'],  # , 'CAAU'],  # , 'CCCC', 'GACC', 'UUUU', 'UCAAUC'],
     'g_exp': ['backbone1_gamma_3J'],  # , 'backbone2_beta_epsilon_3J', 'sugar_3J'],#, 'NOEs'],# , ('uNOEs', '<')],
     'forward_qs': ['backbone1_gamma'],  # , 'backbone2_beta_epsilon','sugar'],
