@@ -133,8 +133,6 @@ else:
 
     x0 = result.pars
 
-print('x0 type: ', type(x0))
-
 #%% 3. run Metropolis sampling
 
 def proposal(x0, dx=0.01):
