@@ -141,7 +141,7 @@ def proposal(x0, dx=0.01):
     x_new = x0 + dx*np.random.normal(size=len(x0))
     return x_new
 
-proposal_full = {'fun': proposal, 'args': ([dx])}
+proposal_move = lambda x : proposal(x, dx)
 
 if alpha is not None:
 
@@ -190,7 +190,7 @@ else:
 
     energy_function = lambda x : energy_fun_FFF(x, if_Jeffreys)
 
-sampling = run_Metropolis(x0, proposal_full, energy_function, n_steps=n_steps)
+sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=n_steps)
 
 #%% 4. save output
 
