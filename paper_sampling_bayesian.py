@@ -133,6 +133,8 @@ else:
 
     x0 = result.pars
 
+print('x0 type: ', type(x0))
+
 #%% 3. run Metropolis sampling
 
 def proposal(x0, dx=0.01):
@@ -154,7 +156,7 @@ if alpha is not None:
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
-            measure, cov = compute_sqrt_det(data.mol[name_mol].g, out.weights_new[name_mol], if_cholesky=True)
+            measure, cov = local_density(data.mol[name_mol].g, out.weights_new[name_mol], if_cholesky=True)
             energy -= np.log(measure)
         
         return energy, av_g
@@ -181,7 +183,7 @@ else:
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
-            measure, cov = compute_sqrt_det((fun_forces, pars, data.mol[name_mol].f), out.weights_new[name_mol])
+            measure, cov = local_density((fun_forces, pars, data.mol[name_mol].f), out.weights_new[name_mol])
             energy -= np.log(measure)
         
         return energy, av_g
