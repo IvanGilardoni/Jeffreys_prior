@@ -16,7 +16,7 @@ import sys
 sys.path.append('../loss_function_complete/')
 
 from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function, unwrap_2dict
-from basic_functions import run_Metropolis, compute_sqrt_det
+from Functions.basic_functions_bayesian import run_Metropolis, local_density
 
 def flat_lambda(lambdas):
 
