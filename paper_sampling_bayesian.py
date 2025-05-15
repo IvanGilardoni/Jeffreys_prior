@@ -203,9 +203,9 @@ if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
 
 if alpha is not None:
-    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
 else:
-    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[-1]}
+    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
 
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
@@ -213,5 +213,5 @@ temp.to_csv(path + '/par_values')
 np.save(path + '/trajectory', sampling[0])
 np.save(path + '/energy', sampling[1])
 
-if type(sampling[2]) is not float:  # if float, it is the average acceptance
-    np.save(path + '/quantities', sampling[2])
+# if type(sampling[2]) is not float:  # if float, it is the average acceptance
+np.save(path + '/quantities', sampling[3])
