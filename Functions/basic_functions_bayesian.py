@@ -9,6 +9,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from tqdm import tqdm
+import Functions.coretools as coretools
 
 def local_density(variab, weights, which_measure = 'jeffreys'):
     """
@@ -628,10 +629,10 @@ def block_analysis(x, size_blocks = None, n_conv = 50):
     
     return Block_analysis_Result(mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks)
 
-class Block_analysis_Result():  # (coretools.Result):
+class Block_analysis_Result(coretools.Result):
     """Result of a `bussilab.maxent.maxent` calculation."""
-    def __init__(self, mean : float, std : float, opt_epsilon : float, epsilon : np.ndarray,
-            smooth : np.ndarray, n_blocks : np.ndarray, size_blocks : np.ndarray):
+    def __init__(self, mean : float, std : float, opt_epsilon : float, epsilons : np.ndarray,
+            epsilons_smooth : np.ndarray, n_blocks : np.ndarray, size_blocks : np.ndarray):
 
         # super().__init__()
         self.mean = mean
@@ -639,7 +640,7 @@ class Block_analysis_Result():  # (coretools.Result):
         self.std = std
         """`float` with the standard deviation."""
         self.opt_epsilon = opt_epsilon
-        self.epsilon = epsilon
-        self.smooth = smooth
+        self.epsilons = epsilons
+        self.epsilons_smooth = epsilons_smooth
         self.n_blocks = n_blocks
         self.size_blocks = size_blocks
