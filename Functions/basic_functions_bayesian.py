@@ -626,4 +626,20 @@ def block_analysis(x, size_blocks = None, n_conv = 50):
     wh = np.where(diff < 0)
     opt_epsilon = smooth[wh[0][0]]
     
-    return mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks
+    return Block_analysis_Result(mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks)
+
+class Block_analysis_Result():  # (coretools.Result):
+    """Result of a `bussilab.maxent.maxent` calculation."""
+    def __init__(self, mean : float, std : float, opt_epsilon : float, epsilon : np.ndarray,
+            smooth : np.ndarray, n_blocks : np.ndarray, size_blocks : np.ndarray):
+
+        # super().__init__()
+        self.mean = mean
+        """`float` with the mean value."""
+        self.std = std
+        """`float` with the standard deviation."""
+        self.opt_epsilon = opt_epsilon
+        self.epsilon = epsilon
+        self.smooth = smooth
+        self.n_blocks = n_blocks
+        self.size_blocks = size_blocks
