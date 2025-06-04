@@ -42,6 +42,9 @@ dx = float(sys.argv[5])  # standard deviation of the normal distribution for the
 if_Jeffreys = int(sys.argv[6])  # boolean variable (True if you take into account the Jeffreys prior, False otherwise)
 n_steps = int(sys.argv[7])  # n. of steps in the Metropolis sampling
 
+seed = np.random.randint(1000)
+rng = np.random.default_rng(seed)
+
 #%% 1. load data
 
 infos = {'global': {
@@ -136,7 +139,7 @@ else:
 #%% 3. run Metropolis sampling
 
 def proposal(x0, dx=0.01):
-    x_new = x0 + dx*np.random.normal(size=len(x0))
+    x_new = x0 + dx*rng.normal(size=len(x0))
     return x_new
 
 proposal_move = lambda x : proposal(x, dx)
@@ -188,7 +191,7 @@ else:
 
     energy_function = lambda x : energy_fun_FFF(x, if_Jeffreys)
 
-sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=n_steps)
+sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=n_steps, seed=seed)
 
 #%% 4. save output
 
