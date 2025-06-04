@@ -3,16 +3,13 @@ Script to perform Bayesian sampling of the optimal ensembles parametrized by lam
 (Ensemble Refinement only or Force-Field Fitting only).
 """
 
-import os
-import datetime
-import sys
+import os, datetime, sys
 import numpy as np
 import jax
 import jax.numpy as jnp
 # import matplotlib.pyplot as plt
-import pandas
+import pandas, pickle
 
-import sys
 sys.path.append('../loss_function_complete/')
 
 from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function, unwrap_2dict
@@ -202,6 +199,11 @@ path = 'Result_' + str(date)
 
 if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
+
+if if_normalize:
+    for name_mol in data.mol.keys():
+        pickle.dump(data.mol[name_mol].normg_mean, open(path + '/norm_g_%s_mean.pickle' % name_mol, 'wb'))
+        pickle.dump(data.mol[name_mol].normg_std, open(path + '/norm_g_%s_std.pickle' % name_mol, 'wb'))
 
 if alpha is not None:
     values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
