@@ -386,6 +386,8 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         Numpy array with the quantities of interest (if any).
     """
 
+    rng = np.random.default_rng(seed)
+
     if energy_function is None:
         # energy_function = {'fun': lambda x : 0, 'args': ()}
         energy_function = lambda x : 0
@@ -400,10 +402,8 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         # proposal = {'fun': fun_proposal, 'args': ([proposal])}
 
         def proposal(x0):
-            x_new = x0 + proposal_stride*np.random.normal(size=len(x0))
+            x_new = x0 + proposal_stride*rng.normal(size=len(x0))
             return x_new
-
-    rng = np.random.default_rng(seed)
 
     x0_ = +x0  # in order TO AVOID OVERWRITING!
     
