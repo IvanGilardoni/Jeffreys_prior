@@ -47,8 +47,8 @@ rng = np.random.default_rng(seed)
 infos = {'global': {
     'path_directory': '../loss_function_complete/DATA',
     'system_names': ['AAAA'],  # , 'CAAU'],  # , 'CCCC', 'GACC', 'UUUU', 'UCAAUC'],
-    'g_exp': ['backbone2_beta_epsilon_3J'],  # ['backbone1_gamma_3J'],  # , 'backbone2_beta_epsilon_3J', 'sugar_3J'],#, 'NOEs'],# , ('uNOEs', '<')],
-    'forward_qs': ['backbone2_beta_epsilon'],  # ['backbone1_gamma'],  # , 'backbone2_beta_epsilon','sugar'],
+    'g_exp': ['backbone1_gamma_3J', 'backbone2_beta_epsilon_3J', 'sugar_3J'],  # , 'NOEs'],# , ('uNOEs', '<')],
+    'forward_qs': ['backbone1_gamma', 'backbone2_beta_epsilon','sugar'],
     # 'obs': ['NOEs'],#, 'uNOEs'],
     'forward_coeffs': 'original_fm_coeffs'}}
 
@@ -68,9 +68,9 @@ def forward_model_fun(fm_coeffs, forward_qs, selected_obs=None):
 
     # 2. compute observables (forward_qs_out) through forward model
     forward_qs_out = {
-        # 'backbone1_gamma_3J': fm_coeffs[0]*forward_qs_cos['backbone1_gamma']**2 + fm_coeffs[1]*forward_qs_cos['backbone1_gamma'] + fm_coeffs[2]}  # ,
-        'backbone2_beta_epsilon_3J': fm_coeffs[3]*forward_qs_cos['backbone2_beta_epsilon']**2 + fm_coeffs[4]*forward_qs_cos['backbone2_beta_epsilon'] + fm_coeffs[5]}  # ,
-        # 'sugar_3J': fm_coeffs[6]*forward_qs_cos['sugar']**2 + fm_coeffs[7]*forward_qs_cos['sugar'] + fm_coeffs[8] }
+        'backbone1_gamma_3J': fm_coeffs[0]*forward_qs_cos['backbone1_gamma']**2 + fm_coeffs[1]*forward_qs_cos['backbone1_gamma'] + fm_coeffs[2],
+        'backbone2_beta_epsilon_3J': fm_coeffs[3]*forward_qs_cos['backbone2_beta_epsilon']**2 + fm_coeffs[4]*forward_qs_cos['backbone2_beta_epsilon'] + fm_coeffs[5],
+        'sugar_3J': fm_coeffs[6]*forward_qs_cos['sugar']**2 + fm_coeffs[7]*forward_qs_cos['sugar'] + fm_coeffs[8] }
 
     return forward_qs_out
 
