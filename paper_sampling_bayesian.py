@@ -29,21 +29,23 @@ def flat_lambda(lambdas):
 #%% 0. global values
 
 parser = argparse.ArgumentParser()
+
+# parser.add_argument('params', nargs=7, type=float, help='List of parameters')
+parser.add_argument('stride', type=int, help='Example: 1')
+parser.add_argument('alpha', type=float, help='Example: 10.')  # hyperparameter value for Ensemble Refinement loss function
+# parser.add_argument('beta', type=float, help='Example: 10.')  # only for force-field fitting
+parser.add_argument('if_normalize', type=int, help='1 True, 0 False; if you want to normalize observables')
+parser.add_argument('if_reduce', type=int, help='1 True, 0 False; if you want to take just 2 observables')
+parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation of the normal distribution for the proposal
+parser.add_argument('if_Jeffreys', type=int, help='1 if you take into account the Jeffreys prior, 0 otherwise')
+parser.add_argument('n_steps', type=float, help='n. steps in the Metropolis sampling')
+
+# optional job_id
 parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")
+
 args = parser.parse_args()
-job_id = args.jobid
+
 print(f"Running job with SLURM ID: ${args.jobid}")
-
-stride = int(sys.argv[1])  # stride for the frames
-alpha = float(sys.argv[2])  # hyperparameter value for Ensemble Refinement loss function
-beta = None # float(sys.argv[2])
-
-if_normalize = int(sys.argv[3])  # True (1) if you want to normalize the observables, False (0) otherwise
-if_reduce = int(sys.argv[4])  # True if you want to take just 2 observables (it works only for `AAAA` and `backbone1_gamma_3J`)
-
-dx = float(sys.argv[5])  # standard deviation of the normal distribution for the proposal
-if_Jeffreys = int(sys.argv[6])  # boolean variable (True if you take into account the Jeffreys prior, False otherwise)
-n_steps = int(sys.argv[7])  # n. of steps in the Metropolis sampling
 
 seed = np.random.randint(1000)
 rng = np.random.default_rng(seed)
@@ -95,14 +97,14 @@ def ff_correction_hexamers(pars, f):
 infos['global']['ff_correction'] = ff_correction
 infos['UCAAUC'] = {'ff_correction': ff_correction_hexamers}
 
-data = load_data(infos, stride=stride)
+data = load_data(infos, stride=args.stride)
 
 print(data)
 
 #%% 2. normalize observables
 # then, find optimal solution at given alpha
 
-if if_normalize:
+if args.if_normalize:
 
     list_name_mol = list(data.mol.keys())
 
@@ -114,7 +116,7 @@ if if_normalize:
         data.mol[name_mol].normg_mean = out[2]
         data.mol[name_mol].normg_std = out[3]
 
-if if_reduce:
+if args.if_reduce:
 
     # s = 'backbone1_gamma_3J'
 
@@ -128,15 +130,15 @@ if if_reduce:
     # data.mol['AAAA'].normg_std[s] = data.mol['AAAA'].normg_std[s][:2]
     data.mol['AAAA'].n_experiments[s] = 2
 
-if alpha is not None:
-    result = minimizer(data, alpha=alpha)
+if args.alpha is not None:
+    result = minimizer(data, alpha=args.alpha)
 
     lambdas = result.min_lambdas
     x0 = flat_lambda(lambdas)
 
 else:
-    assert beta is not None
-    result = minimizer(data, regularization={'force_field_reg': 'KL divergence'}, beta=beta)
+    assert args.beta is not None
+    result = minimizer(data, regularization={'force_field_reg': 'KL divergence'}, beta=args.beta)
 
     x0 = result.pars
 
@@ -146,14 +148,14 @@ def proposal(x0, dx=0.01):
     x_new = x0 + dx*rng.normal(size=len(x0))
     return x_new
 
-proposal_move = lambda x : proposal(x, dx)
+proposal_move = lambda x : proposal(x, args.dx)
 
-if alpha is not None:
+if args.alpha is not None:
 
     def energy_fun_ER(lambdas, if_Jeffreys):  # energy_fun output must be a tuple, 2nd output None if no quantities are computed
         """ there are some inner variables previously defined but non as function input, like alpha """
         
-        out = loss_function(np.zeros(2), data, regularization=None, alpha=alpha, fixed_lambdas=lambdas, if_save=True)
+        out = loss_function(np.zeros(2), data, regularization=None, alpha=args.alpha, fixed_lambdas=lambdas, if_save=True)
         
         energy = out.loss_explicit
 
@@ -166,7 +168,7 @@ if alpha is not None:
         
         return energy, av_g
 
-    energy_function = lambda x : energy_fun_ER(x, if_Jeffreys)
+    energy_function = lambda x : energy_fun_ER(x, args.if_Jeffreys)
 
 else:
 
@@ -180,7 +182,7 @@ else:
     def energy_fun_FFF(pars, if_Jeffreys):
         """ there are some inner variables previously defined but non as function input, like beta """
 
-        out = loss_function(pars, data, regularization={'force_field_reg': 'KL divergence'}, beta=beta, if_save=True)
+        out = loss_function(pars, data, regularization={'force_field_reg': 'KL divergence'}, beta=args.beta, if_save=True)
         
         energy = out.loss  # which is loss_explicit if alpha is infinite
 
@@ -193,9 +195,9 @@ else:
         
         return energy, av_g
 
-    energy_function = lambda x : energy_fun_FFF(x, if_Jeffreys)
+    energy_function = lambda x : energy_fun_FFF(x, args.if_Jeffreys)
 
-sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=n_steps, seed=seed)
+sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=args.n_steps, seed=seed)
 
 #%% 4. save output
 
@@ -207,15 +209,13 @@ path = 'Result_' + str(date)
 if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
 
-if if_normalize:
+if args.if_normalize:
     for name_mol in data.mol.keys():
         pickle.dump(data.mol[name_mol].normg_mean, open(path + '/norm_g_%s_mean.pickle' % name_mol, 'wb'))
         pickle.dump(data.mol[name_mol].normg_std, open(path + '/norm_g_%s_std.pickle' % name_mol, 'wb'))
 
-if alpha is not None:
-    values = {'job_id': job_id, 'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
-else:
-    values = {'job_id': job_id, 'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
+values = vars(args)
+values['av. acceptance'] = sampling[2]
 
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
