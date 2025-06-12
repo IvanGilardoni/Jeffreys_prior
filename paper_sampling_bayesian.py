@@ -30,6 +30,8 @@ def flat_lambda(lambdas):
 
 parser = argparse.ArgumentParser()
 
+parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")  # optional job_id
+
 # parser.add_argument('params', nargs=7, type=float, help='List of parameters')
 parser.add_argument('stride', type=int, help='Example: 1')
 parser.add_argument('alpha', type=float, help='Example: 10.')  # hyperparameter value for Ensemble Refinement loss function
@@ -39,9 +41,6 @@ parser.add_argument('if_reduce', type=int, help='1 True, 0 False; if you want to
 parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation of the normal distribution for the proposal
 parser.add_argument('if_Jeffreys', type=int, help='1 if you take into account the Jeffreys prior, 0 otherwise')
 parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
-
-# optional job_id
-parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")
 
 args = parser.parse_args()
 
