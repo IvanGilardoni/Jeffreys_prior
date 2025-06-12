@@ -3,7 +3,7 @@ Script to perform Bayesian sampling of the optimal ensembles parametrized by lam
 (Ensemble Refinement only or Force-Field Fitting only).
 """
 
-import os, datetime, sys
+import os, datetime, sys, argparse
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -27,6 +27,12 @@ def flat_lambda(lambdas):
     return flatten_lambda
 
 #%% 0. global values
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")
+args = parser.parse_args()
+job_id = args.jobid
+print(f"Running job with SLURM ID: ${args.jobid}")
 
 stride = int(sys.argv[1])  # stride for the frames
 alpha = float(sys.argv[2])  # hyperparameter value for Ensemble Refinement loss function
@@ -207,9 +213,9 @@ if if_normalize:
         pickle.dump(data.mol[name_mol].normg_std, open(path + '/norm_g_%s_std.pickle' % name_mol, 'wb'))
 
 if alpha is not None:
-    values = {'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
+    values = {'job_id': job_id, 'stride': stride, 'alpha ER': alpha, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
 else:
-    values = {'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
+    values = {'job_id': job_id, 'stride': stride, 'beta FFF': beta, 'normalize?': if_normalize, 'reduce?': if_reduce, 'Jeffreys?': if_Jeffreys, 'dlambda': dx, 'n_steps': n_steps, 'av. acceptance': sampling[2]}
 
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
