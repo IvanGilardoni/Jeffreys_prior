@@ -38,7 +38,7 @@ parser.add_argument('if_normalize', type=int, help='1 True, 0 False; if you want
 parser.add_argument('if_reduce', type=int, help='1 True, 0 False; if you want to take just 2 observables')
 parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation of the normal distribution for the proposal
 parser.add_argument('if_Jeffreys', type=int, help='1 if you take into account the Jeffreys prior, 0 otherwise')
-parser.add_argument('n_steps', type=float, help='n. steps in the Metropolis sampling')
+parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
 
 # optional job_id
 parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")
