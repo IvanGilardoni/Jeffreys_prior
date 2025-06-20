@@ -339,11 +339,13 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     x0 : numpy.ndarray
         Numpy array for the initial configuration.
     
-    proposal : function or float
+    proposal : function or float or tuple
         Function for the proposal move, which takes as input variables just the starting configuration `x0`
         and returns the new proposed configuration (trial move of Metropolis algorithm).
         Alternatively, float variable for the standard deviation of a (zero-mean) multi-variate Gaussian variable
         representing the proposed step (namely, the stride).
+        Another possibility is the tuple `('once', step)` where `step` is a float or int variable;
+        in this case, the proposal is done on each coordinate once per time, following a cycle.
 
     energy_function : function
         Function for the energy, which takes as input variables just a configuration (`x0` for instance)
@@ -404,6 +406,32 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         def proposal(x0):
             x_new = x0 + proposal_stride*rng.normal(size=len(x0))
             return x_new
+    
+    elif (proposal == 'once') or ((type(proposal) is tuple) and (proposal[0] == 'once')):
+        
+        if type(proposal) is tuple:
+            assert (type(proposal[1]) is int) or (type(proposal[1]) is float), 'error on proposal'
+            step_width = proposal[1]
+        else: step_width = 1.
+
+
+        class Proposal:
+            """ class for updating one coordinate per time (it includes the attribute my_par
+                to take in memory which coordinate to update) """
+            def __init__(self, my_par = 0):
+                self.my_par = my_par
+            
+            def __call__(self, x0, step_width = 1.):
+                
+                x_new = + x0
+                x_new[self.my_par] = x0[self.my_par] + step_width*rng.normal()
+
+                self.my_par += 1
+                self.my_par = np.mod(self.my_par, len(x0))
+                
+                return x_new
+
+        proposal = Proposal(step_width)
 
     x0_ = +x0  # in order TO AVOID OVERWRITING!
     
