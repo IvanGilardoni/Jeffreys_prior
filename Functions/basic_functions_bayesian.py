@@ -328,6 +328,31 @@ def compute(my_lambdas, P0, g, gexp, sigma, alpha):
 
     else: return None
 
+
+
+
+class Proposal_onebyone:
+    """ class for updating one coordinate per time (it includes the attribute `index`
+        to take in memory which coordinate to update) """
+    def __init__(self, step_width = 1., index = 0, rng=None):
+        self.step_width = step_width
+        self.index = index
+        
+        if rng is None: self.rng = np.random.default_rng(np.random.randint(1000))
+        else: self.rng = rng
+    
+    def __call__(self, x0):
+        
+        x_new = + x0
+        print(x_new, self.index)
+        x_new[self.index] = x0[self.index] + self.step_width*self.rng.normal()
+
+        self.index += 1
+        self.index = int(np.mod(self.index, len(x0)))
+        
+        return x_new
+
+
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True):
     """
@@ -414,24 +439,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
             step_width = proposal[1]
         else: step_width = 1.
 
-
-        class Proposal:
-            """ class for updating one coordinate per time (it includes the attribute my_par
-                to take in memory which coordinate to update) """
-            def __init__(self, my_par = 0):
-                self.my_par = my_par
-            
-            def __call__(self, x0, step_width = 1.):
-                
-                x_new = + x0
-                x_new[self.my_par] = x0[self.my_par] + step_width*rng.normal()
-
-                self.my_par += 1
-                self.my_par = np.mod(self.my_par, len(x0))
-                
-                return x_new
-
-        proposal = Proposal(step_width)
+        proposal = Proposal_onebyone(step_width=step_width, rng=rng)
 
     x0_ = +x0  # in order TO AVOID OVERWRITING!
     
@@ -472,7 +480,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         alpha = np.exp(-(u_try - u0)/kT)
         
         if alpha > 1: alpha = 1
-        if alpha > rng.random():
+        if alpha > rng.random():  # move accepted!
             av_alpha += 1
             x0_ = +x_try
             u0 = +u_try
