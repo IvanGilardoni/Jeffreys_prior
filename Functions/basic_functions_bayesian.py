@@ -344,8 +344,8 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         and returns the new proposed configuration (trial move of Metropolis algorithm).
         Alternatively, float variable for the standard deviation of a (zero-mean) multi-variate Gaussian variable
         representing the proposed step (namely, the stride).
-        Another possibility is the tuple `('once', step)` where `step` is a float or int variable;
-        in this case, the proposal is done on each coordinate once per time, following a cycle.
+        Another possibility is the tuple `('one-by-one', step)` where `step` is a float or int variable;
+        in this case, the proposal is done on each coordinate one at a time, following a cycle.
 
     energy_function : function
         Function for the energy, which takes as input variables just a configuration (`x0` for instance)
@@ -407,7 +407,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
             x_new = x0 + proposal_stride*rng.normal(size=len(x0))
             return x_new
     
-    elif (proposal == 'once') or ((type(proposal) is tuple) and (proposal[0] == 'once')):
+    elif (proposal == 'one-by-one') or ((type(proposal) is tuple) and (proposal[0] == 'one-by-one')):
         
         if type(proposal) is tuple:
             assert (type(proposal[1]) is int) or (type(proposal[1]) is float), 'error on proposal'
