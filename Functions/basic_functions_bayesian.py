@@ -344,7 +344,6 @@ class Proposal_onebyone:
     def __call__(self, x0):
         
         x_new = + x0
-        print(x_new, self.index)
         x_new[self.index] = x0[self.index] + self.step_width*self.rng.normal()
 
         self.index += 1
