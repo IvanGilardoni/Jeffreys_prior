@@ -3,7 +3,7 @@ Script to perform Bayesian sampling of the optimal ensembles parametrized by lam
 (Ensemble Refinement only or Force-Field Fitting only).
 """
 
-import os, datetime, sys, argparse
+import os, datetime, sys, argparse, time
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -26,7 +26,7 @@ def flat_lambda(lambdas):
 
     return flatten_lambda
 
-#%% 0. global values
+#%% 0. input values
 
 parser = argparse.ArgumentParser()
 
@@ -38,6 +38,7 @@ parser.add_argument('alpha', type=float, help='Example: 10.')  # hyperparameter 
 # parser.add_argument('beta', type=float, help='Example: 10.')  # only for force-field fitting
 parser.add_argument('if_normalize', type=int, help='1 True, 0 False; if you want to normalize observables')
 parser.add_argument('if_reduce', type=int, help='1 True, 0 False; if you want to take just 2 observables')
+parser.add_argument('if_onebyone', type=int, help='1 True, 0 False; if the proposal move is done cycling on each coordinate')
 parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation of the normal distribution for the proposal
 parser.add_argument('if_Jeffreys', type=int, help='1 if you take into account the Jeffreys prior, 0 otherwise')
 parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
@@ -71,7 +72,7 @@ def forward_model_fun(fm_coeffs, forward_qs, selected_obs=None):
     # if you have selected_obs, compute only the corresponding observables
     if selected_obs is not None:
         for type_name in forward_qs.keys():
-            forward_qs_cos[type_name] = forward_qs_cos[type_name][:,selected_obs[type_name+'_3J']]
+            forward_qs_cos[type_name] = forward_qs_cos[type_name][:, selected_obs[type_name+'_3J']]
 
     # 2. compute observables (forward_qs_out) through forward model
     forward_qs_out = {
@@ -143,11 +144,14 @@ else:
 
 #%% 3. run Metropolis sampling
 
-def proposal(x0, dx=0.01):
-    x_new = x0 + dx*rng.normal(size=len(x0))
-    return x_new
-
-proposal_move = lambda x : proposal(x, args.dx)
+if not args.if_onebyone:
+    def proposal(x0, dx=0.01):
+        x_new = x0 + dx*rng.normal(size=len(x0))
+        return x_new
+    proposal_move = lambda x : proposal(x, args.dx)
+else:
+    from Functions.basic_functions_bayesian import Proposal_onebyone
+    proposal_move = lambda x : Proposal_onebyone(step_width=args.dx, rng=rng)
 
 if args.alpha is not None:
 
@@ -196,7 +200,11 @@ else:
 
     energy_function = lambda x : energy_fun_FFF(x, args.if_Jeffreys)
 
+t0 = time.time()
+
 sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=args.n_steps, seed=seed)
+
+dt = time.time() - t0
 
 #%% 4. save output
 
@@ -215,6 +223,7 @@ if args.if_normalize:
 
 values = vars(args)
 values['av. acceptance'] = sampling[2]
+values['time'] = dt
 
 temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
 temp.to_csv(path + '/par_values')
