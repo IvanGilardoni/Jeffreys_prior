@@ -40,7 +40,8 @@ parser.add_argument('if_normalize', type=int, help='1 True, 0 False; if you want
 parser.add_argument('if_reduce', type=int, help='1 True, 0 False; if you want to take just 2 observables')
 parser.add_argument('if_onebyone', type=int, help='1 True, 0 False; if the proposal move is done cycling on each coordinate')
 parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation of the normal distribution for the proposal
-parser.add_argument('if_Jeffreys', type=int, help='1 if you take into account the Jeffreys prior, 0 otherwise')
+parser.add_argument('which_measure', type=int, help='0 for plain sampling on lambdas, 1 for Jeffreys, 2 for Dirichlet, 3 for average')
+# `which_measure` rather than `if_jeffreys`
 parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
 
 args = parser.parse_args()
@@ -158,23 +159,28 @@ else: proposal = ('one-by-one', args.dx)
 
 if args.alpha is not None:
 
-    def energy_fun_ER(lambdas, if_Jeffreys):  # energy_fun output must be a tuple, 2nd output None if no quantities are computed
+    def energy_fun_ER(lambdas, which_measure):  # energy_fun output must be a tuple, 2nd output None if no quantities are computed
         """ there are some inner variables previously defined but non as function input, like alpha """
         
         out = loss_function(np.zeros(2), data, regularization=None, alpha=args.alpha, fixed_lambdas=lambdas, if_save=True)
         
         energy = out.loss_explicit
 
-        av_g = unwrap_2dict(out.av_g)[0] + [np.float(out.D_KL_alpha['AAAA'])]
+        av_g = unwrap_2dict(out.av_g)[0] + [np.float64(out.D_KL_alpha['AAAA'])]
 
-        if if_Jeffreys:
+        if (args.which_measure in [1, 2, 3]):
             name_mol = list(out.weights_new.keys())[0]
-            measure, cov = local_density(data.mol[name_mol].g, out.weights_new[name_mol])
+            
+            if args.which_measure == 1 : which_measure = 'jeffreys'
+            elif args.which_measure == 2 : which_measure = 'dirichlet'
+            else: which_measure = 'average'
+            
+            measure, cov = local_density(data.mol[name_mol].g, out.weights_new[name_mol], which_measure=which_measure)
             energy -= np.log(measure)
         
         return energy, av_g
 
-    energy_function = lambda x : energy_fun_ER(x, args.if_Jeffreys)
+    energy_function = lambda x : energy_fun_ER(x, args.which_measure)
 
 else:
 
@@ -185,14 +191,14 @@ else:
     ff_correction = data.mol[name_mol].ff_correction
     fun_forces = jax.jacfwd(ff_correction, argnums=0)
 
-    def energy_fun_FFF(pars, if_Jeffreys):
+    def energy_fun_FFF(pars, if_Jeffreys):  # TO BE FIXED!!
         """ there are some inner variables previously defined but non as function input, like beta """
 
         out = loss_function(pars, data, regularization={'force_field_reg': 'KL divergence'}, beta=args.beta, if_save=True)
         
         energy = out.loss  # which is loss_explicit if alpha is infinite
 
-        av_g = unwrap_2dict(out.av_g)[0] + [np.float(out.reg_ff['AAAA'])]
+        av_g = unwrap_2dict(out.av_g)[0] + [np.float64(out.reg_ff['AAAA'])]
 
         if if_Jeffreys:
             name_mol = list(out.weights_new.keys())[0]
