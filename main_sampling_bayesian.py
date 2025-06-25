@@ -144,14 +144,17 @@ else:
 
 #%% 3. run Metropolis sampling
 
-if not args.if_onebyone:
-    def proposal(x0, dx=0.01):
-        x_new = x0 + dx*rng.normal(size=len(x0))
-        return x_new
-    proposal_move = lambda x : proposal(x, args.dx)
-else:
-    from Functions.basic_functions_bayesian import Proposal_onebyone
-    proposal_move = lambda x : Proposal_onebyone(step_width=args.dx, rng=rng)
+if not args.if_onebyone: proposal = args.dx
+else: proposal = ('one-by-one', args.dx)
+
+# if not args.if_onebyone:
+#     def proposal(x0, dx=0.01):
+#         x_new = x0 + dx*rng.normal(size=len(x0))
+#         return x_new
+#     proposal_move = lambda x : proposal(x, args.dx)
+# else:
+#     from Functions.basic_functions_bayesian import Proposal_onebyone
+#     proposal_move = lambda x : Proposal_onebyone(step_width=args.dx, rng=rng)
 
 if args.alpha is not None:
 
@@ -202,7 +205,7 @@ else:
 
 t0 = time.time()
 
-sampling = run_Metropolis(x0, proposal_move, energy_function, n_steps=args.n_steps, seed=seed)
+sampling = run_Metropolis(x0, proposal, energy_function, n_steps=args.n_steps, seed=seed)
 
 dt = time.time() - t0
 
