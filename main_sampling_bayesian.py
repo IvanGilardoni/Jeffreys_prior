@@ -220,7 +220,7 @@ dt = time.time() - t0
 s = datetime.datetime.now()
 date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
 
-path = 'Result_' + str(date)
+path = 'Results_sampling_ER/Result_' + str(date)
 
 if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
