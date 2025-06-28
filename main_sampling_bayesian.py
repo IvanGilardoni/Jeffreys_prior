@@ -30,7 +30,7 @@ def flat_lambda(lambdas):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--jobid', type=str, required=False, help="SLURM job ID")  # optional job_id
+parser.add_argument('--jobid', type=str, required=False, default=1, help="SLURM job ID")  # optional job_id
 
 # parser.add_argument('params', nargs=7, type=float, help='List of parameters')
 parser.add_argument('stride', type=int, help='Example: 1')
@@ -43,13 +43,14 @@ parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation
 parser.add_argument('which_measure', type=int, help='0 for plain sampling on lambdas, 1 for Jeffreys, 2 for Dirichlet, 3 for average')
 # `which_measure` rather than `if_jeffreys`
 parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
+parser.add_argument('seed', type=int, required=False, default=np.random.randint(1000), help='seed (random state)')
 
 args = parser.parse_args()
 
 print(f"Running job with SLURM ID: ${args.jobid}")
 
-seed = np.random.randint(1000)
-rng = np.random.default_rng(seed)
+# seed = np.random.randint(1000)
+rng = np.random.default_rng(args.seed)
 
 #%% 1. load data
 
@@ -211,7 +212,7 @@ else:
 
 t0 = time.time()
 
-sampling = run_Metropolis(x0, proposal, energy_function, n_steps=args.n_steps, seed=seed)
+sampling = run_Metropolis(x0, proposal, energy_function, n_steps=args.n_steps, seed=args.seed)
 
 dt = time.time() - t0
 
