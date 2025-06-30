@@ -43,7 +43,7 @@ parser.add_argument('dx', type=float, help='Example: 0.2')  # standard deviation
 parser.add_argument('which_measure', type=int, help='0 for plain sampling on lambdas, 1 for Jeffreys, 2 for Dirichlet, 3 for average')
 # `which_measure` rather than `if_jeffreys`
 parser.add_argument('n_steps', type=int, help='n. steps in the Metropolis sampling')
-parser.add_argument('seed', type=int, required=False, default=np.random.randint(1000), help='seed (random state)')
+parser.add_argument('--seed', type=int, required=False, default=np.random.randint(1000), help='seed (random state)')
 
 args = parser.parse_args()
 
