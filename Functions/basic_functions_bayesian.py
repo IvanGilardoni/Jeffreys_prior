@@ -11,6 +11,15 @@ import jax.numpy as jnp
 from tqdm import tqdm
 import Functions.coretools as coretools
 
+def make_sym_pos_def(cov, epsilon=1e-8):
+    """ Make `cov` symmetric and positive definite
+    (useful if `cov` should be so, but it is not, e.g., due to round-off errors).
+    """
+    cov = (cov + cov.T)/2
+    min_eig = np.min(np.real(np.linalg.eigvals(cov)))
+    if min_eig <= 0 : cov += (-min_eig + epsilon)*np.eye(cov.shape[0])  # < or <= ? Implement a Bool for this choice!
+    return cov
+
 def local_density(variab, weights, which_measure = 'jeffreys'):
     """
     This function computes the local density of ensembles in the cases of Ensemble Refinement or Force-Field Fitting.
@@ -86,7 +95,11 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
             triang = np.linalg.cholesky(cov)
             density = np.prod(np.diag(triang))
         except:
-            density = np.sqrt(np.linalg.det(cov))
+            # density = np.sqrt(np.linalg.det(cov))
+
+            cov = make_sym_pos_def(cov)
+            triang = np.linalg.cholesky(cov)
+            density = np.prod(np.diag(triang))
 
         if which_measure == 'average': density = density**2
 
@@ -128,12 +141,22 @@ def local_density(variab, weights, which_measure = 'jeffreys'):
         met = np.einsum('i,tj,t->ij', av_values, values, weights**2)
         metric -= met + met.T
 
+        # metric = make_sym_pos_def(metric)
+
+        # assert np.linalg.cholesky(metric), metric
+        # if not (np.isnan(metric).any() or np.isnan(metric).any()) and (np.all(np.linalg.eigvalsh(metric) > 0)):
         try:
             triang = np.linalg.cholesky(metric)
             density = np.prod(np.diag(triang))
-        except:
-            density = np.sqrt(np.linalg.det(metric))
-            if np.isnan(density): print('density is NaN because metric has been evaluated as ', metric)
+        except:  # np.linalg.LinAlgError as e:  # it may happen: `Matrix is not positive definite` (zero due to round-off errors)
+            metric = make_sym_pos_def(metric, epsilon=1e-8)
+            triang = np.linalg.cholesky(metric)
+            density = np.prod(np.diag(triang))
+
+            # my_det = np.linalg.det(metric)
+            # assert type(my_det) is np.float64, 'error on my_det: %f, type %s' % (my_det, str(type(my_det)))
+            # if my_det == 0 : my_det = 1e-8
+            # density = np.sqrt(my_det)
 
         return density, metric
 
