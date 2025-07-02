@@ -8,12 +8,47 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 # import matplotlib.pyplot as plt
-import pandas, pickle
+import pandas
 
 sys.path.append('../loss_function_complete/')
 
 from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function, unwrap_2dict
 from Functions.basic_functions_bayesian import run_Metropolis, local_density
+
+def save_dict_to_txt(my_dict, txt_path, sep : str=' '):
+    """
+    Save a dictionary as a txt file with column names given by indicization of dict keys.
+    Each item value should be 0- or 1-dimensional (either int, float, np.ndarray or list),
+    not 2-dimensional or more.
+    """
+
+    header = []
+    values = []
+
+    for key, arr in my_dict.items():
+        if (type(arr) is int) or (type(arr) is float):
+            header.append(key)
+            values.append(arr)
+        else:
+            # assert ((type(arr) is np.ndarray) and (len(arr.shape) == 1)) or (type(arr) is list), 'error on element with key %s' % key
+            # you could also have jax arrays, so manage as follows:
+
+            try:
+                l = len(arr.shape)
+            except:
+                l = 0
+            assert (l == 1) or (type(arr) is list), 'error on element with key %s' % key
+            
+            # you should also check that each element in the list is 1-dimensional
+            for i, val in enumerate(arr, 1):
+                header.append(f"{key}_{i}")
+                values.append(val)
+
+    with open(txt_path, 'w') as f:
+        f.write(sep.join(header) + '\n')
+        f.write(sep.join(str(v) for v in values) + '\n')
+
+    return
 
 def flat_lambda(lambdas):
 
@@ -228,8 +263,8 @@ else: print('possible overwriting')
 
 if args.if_normalize:
     for name_mol in data.mol.keys():
-        pickle.dump(data.mol[name_mol].normg_mean, open(path + '/norm_g_%s_mean.pickle' % name_mol, 'wb'))
-        pickle.dump(data.mol[name_mol].normg_std, open(path + '/norm_g_%s_std.pickle' % name_mol, 'wb'))
+        save_dict_to_txt(data.mol[name_mol].normg_mean, path + '/normg_mean_%s_%i' % (name_mol, args.stride))
+        save_dict_to_txt(data.mol[name_mol].normg_std, path + '/normg_std_%s_%i' % (name_mol, args.stride))
 
 values = vars(args)
 values['av. acceptance'] = sampling[2]
