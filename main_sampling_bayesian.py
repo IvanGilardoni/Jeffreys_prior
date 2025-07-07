@@ -7,7 +7,6 @@ import os, datetime, sys, argparse, time
 import numpy as np
 import jax
 import jax.numpy as jnp
-# import matplotlib.pyplot as plt
 import pandas
 
 sys.path.append('../loss_function_complete/')
@@ -113,9 +112,12 @@ def forward_model_fun(fm_coeffs, forward_qs, selected_obs=None):
 
     # 2. compute observables (forward_qs_out) through forward model
     forward_qs_out = {
-        'backbone1_gamma_3J': fm_coeffs[0]*forward_qs_cos['backbone1_gamma']**2 + fm_coeffs[1]*forward_qs_cos['backbone1_gamma'] + fm_coeffs[2],
-        'backbone2_beta_epsilon_3J': fm_coeffs[3]*forward_qs_cos['backbone2_beta_epsilon']**2 + fm_coeffs[4]*forward_qs_cos['backbone2_beta_epsilon'] + fm_coeffs[5],
-        'sugar_3J': fm_coeffs[6]*forward_qs_cos['sugar']**2 + fm_coeffs[7]*forward_qs_cos['sugar'] + fm_coeffs[8] }
+        s + '_3J' : fm_coeffs[0]*forward_qs_cos[s]**2 + fm_coeffs[1]*forward_qs_cos[s] + fm_coeffs[2] for s in forward_qs_cos.keys()}
+    
+        # that is:
+        # 'backbone1_gamma_3J': fm_coeffs[0]*forward_qs_cos['backbone1_gamma']**2 + fm_coeffs[1]*forward_qs_cos['backbone1_gamma'] + fm_coeffs[2],
+        # 'backbone2_beta_epsilon_3J': fm_coeffs[3]*forward_qs_cos['backbone2_beta_epsilon']**2 + fm_coeffs[4]*forward_qs_cos['backbone2_beta_epsilon'] + fm_coeffs[5],
+        # 'sugar_3J': fm_coeffs[6]*forward_qs_cos['sugar']**2 + fm_coeffs[7]*forward_qs_cos['sugar'] + fm_coeffs[8] }
 
     return forward_qs_out
 
@@ -132,11 +134,9 @@ def ff_correction_hexamers(pars, f):
     return out
 
 infos['global']['ff_correction'] = ff_correction
-infos['UCAAUC'] = {'ff_correction': ff_correction_hexamers}
+# infos['UCAAUC'] = {'ff_correction': ff_correction_hexamers}
 
 data = load_data(infos, stride=args.stride)
-
-print(data)
 
 #%% 2. normalize observables
 # then, find optimal solution at given alpha
@@ -155,17 +155,31 @@ if args.if_normalize:
 
 if args.if_reduce:
 
-    # s = 'backbone1_gamma_3J'
+    assert list(data.mol.keys()) == ['AAAA'], 'ensure you have loaded just AAAA molecule'
 
-    assert list(data.mol.keys()) == ['AAAA']
-    s = list(data.mol['AAAA'].g.keys())[0]
-    # assert list(data.mol['AAAA'].g.keys()) == [s]
+    s = 'backbone1_gamma_3J'
+    my_mol = data.mol['AAAA']
+    # to avoid repeating `data.mol['AAAA']` you can act on `my_mol`, with the same results on `data.mol['AAAA']`
+    # because this does not create a copy, just a reference to the original object!
 
-    data.mol['AAAA'].gexp[s] = data.mol['AAAA'].gexp[s][:2, :]
-    data.mol['AAAA'].g[s] = data.mol['AAAA'].g[s][:, :2]
-    # data.mol['AAAA'].normg_mean[s] = data.mol['AAAA'].normg_mean[s][:2]
-    # data.mol['AAAA'].normg_std[s] = data.mol['AAAA'].normg_std[s][:2]
-    data.mol['AAAA'].n_experiments[s] = 2
+    assert s in list(my_mol.g.keys()), 'ensure you have loaded just one kind of observables'
+
+    my_mol.gexp = {s: my_mol.gexp[s]}
+    my_mol.g = {s: my_mol.g[s]}
+    my_mol.names = {s: my_mol.names[s]}
+    my_mol.ref = {s: my_mol.ref[s]}
+    my_mol.forward_qs = {s[:-3]: my_mol.forward_qs[s[:-3]]}
+    my_mol.n_experiments = {s: my_mol.n_experiments[s]}
+
+    my_mol.gexp[s] = my_mol.gexp[s][:2, :]
+    my_mol.g[s] = my_mol.g[s][:, :2]
+    my_mol.names[s] = my_mol.names[s][:2]
+    my_mol.normg_mean[s] = my_mol.normg_mean[s][:2]
+    my_mol.normg_std[s] = my_mol.normg_std[s][:2]
+    my_mol.n_experiments[s] = 2
+
+    # just a final check
+    assert (len(list(data.mol['AAAA'].g.keys())) == 1) and len(data.mol['AAAA'].names[s] == 2), 'error in reduction'
 
 if args.alpha is not None:
     result = minimizer(data, alpha=args.alpha)
@@ -183,15 +197,6 @@ else:
 
 if not args.if_onebyone: proposal = args.dx
 else: proposal = ('one-by-one', args.dx)
-
-# if not args.if_onebyone:
-#     def proposal(x0, dx=0.01):
-#         x_new = x0 + dx*rng.normal(size=len(x0))
-#         return x_new
-#     proposal_move = lambda x : proposal(x, args.dx)
-# else:
-#     from Functions.basic_functions_bayesian import Proposal_onebyone
-#     proposal_move = lambda x : Proposal_onebyone(step_width=args.dx, rng=rng)
 
 if args.alpha is not None:
 
@@ -253,10 +258,13 @@ dt = time.time() - t0
 
 #%% 4. save output
 
+if args.if_reduce: path = 'Results_sampling_ER_reduced'
+else: path = 'Results_sampling_ER'
+if not os.path.exists(path): os.mkdir(path)
+
 s = datetime.datetime.now()
 date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
-
-path = 'Results_sampling_ER/Result_' + str(date)
+path = path + '/Result_' + str(date)
 
 if not os.path.exists(path): os.mkdir(path)
 else: print('possible overwriting')
