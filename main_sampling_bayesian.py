@@ -207,7 +207,7 @@ if args.alpha is not None:
         
         energy = out.loss_explicit
 
-        av_g = unwrap_2dict(out.av_g)[0] + [np.float64(out.D_KL_alpha['AAAA'])]
+        av_g = unwrap_2dict(out.av_g)[0] + [np.float64(out.D_KL_alpha['AAAA']), out.loss_explicit]
 
         if (args.which_measure in [1, 2, 3]):
             name_mol = list(out.weights_new.keys())[0]
