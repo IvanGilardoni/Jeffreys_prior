@@ -179,7 +179,7 @@ if args.if_reduce:
     my_mol.n_experiments[s] = 2
 
     # just a final check
-    assert (len(list(data.mol['AAAA'].g.keys())) == 1) and len(data.mol['AAAA'].names[s] == 2), 'error in reduction'
+    assert (len(list(data.mol['AAAA'].g.keys())) == 1) and (len(data.mol['AAAA'].names[s]) == 2), 'error in reduction'
 
 if args.alpha is not None:
     result = minimizer(data, alpha=args.alpha)
