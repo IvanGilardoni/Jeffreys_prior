@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 from tqdm import tqdm
 import Functions.coretools as coretools
+import time, pandas
 
 def make_sym_pos_def(cov, epsilon=1e-8):
     """ Make `cov` symmetric and positive definite
@@ -375,8 +376,34 @@ class Proposal_onebyone:
         return x_new
 
 
+class Saving_function():
+    def __init__(self, values : dict={}, t0 : float=0., date : str='', path : str='.', i_save : int=10000):
+        self.values = values
+        self.date = date
+
+        if t0 == 0: self.t0 = time.time()
+        else: self.t0 = t0
+        
+        self.path = path
+        self.i_save = i_save
+
+    def __call__(self, av_acceptance, traj, energy, qs):
+
+        self.values['av. acceptance'] = av_acceptance
+        self.values['time'] = time.time() - self.t0
+
+        temp = pandas.DataFrame(list(self.values.values()), index=list(self.values.keys()), columns=[self.date]).T
+        temp.to_csv(self.path + '/par_values')
+
+        np.save(self.path + '/trajectory', traj)
+        np.save(self.path + '/energy', energy)
+
+        # if type(sampling[2]) is not float:  # if float, it is the average acceptance
+        np.save(self.path + '/quantities', qs)
+
+
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
-    n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True):
+    n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
     """
     This function runs a Metropolis sampling algorithm.
     
@@ -398,6 +425,9 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         Function for the energy, which takes as input variables just a configuration (`x0` for instance)
         and returns its energy; `energy_function` can return also some quantities of interest,
         defined on the input configuration.
+        If your energy function `energy_fun` has more than one input variables, just redefine it as
+        `energy_function = lambda x : energy_fun(x, simple_model, 'dirichlet')` before passing `energy_function`
+        to `run_Metropolis`.
     
     quantity_function : function
         Function used to compute some quantities of interest on the initial configuration.
@@ -418,6 +448,10 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     
     i_print : int
         How many steps to print an indicator of the running algorithm (current n. of steps).
+
+    saving : object of class `Saving_function`
+        If `saving is None` do not save, if it is `'yes'` use default object of class `Saving_function`.
+        To save the results during the Metropolis run (or in the end).
     -----------
 
     Returns
@@ -436,6 +470,10 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     """
 
     rng = np.random.default_rng(seed)
+
+    if saving == 'yes': saving = Saving_function()
+    if saving is None: i_save = n_steps - 1
+    else: i_save = saving.i_save
 
     if energy_function is None:
         # energy_function = {'fun': lambda x : 0, 'args': ()}
@@ -468,7 +506,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     traj = []
     ene = []
     quantities = []
-    av_alpha = 0
+    sum_alpha = 0
 
     traj.append([])
     traj[-1] = +x0_
@@ -503,7 +541,7 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
         
         if alpha > 1: alpha = 1
         if alpha > rng.random():  # move accepted!
-            av_alpha += 1
+            sum_alpha += 1
             x0_ = +x_try
             u0 = +u_try
 
@@ -523,10 +561,14 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
 
         if (not if_tqdm) and (np.mod(i_step, i_print) == 0): print(i_step)
 
-    av_alpha = av_alpha/n_steps
+        if (np.mod(i_step, i_save) == 0) or (i_step == (n_steps - 1)):
+            av_acceptance = sum_alpha/(i_step + 1)
+            if saving is not None:
+                if quantities[0] is not None: qs = np.array(quantities)
+                saving(av_acceptance, np.array(traj), np.array(ene), qs)
     
-    if quantities[0] is None: return np.array(traj), np.array(ene), av_alpha
-    else: return np.array(traj), np.array(ene), av_alpha, np.array(quantities)
+    if quantities[0] is None: return np.array(traj), np.array(ene), av_acceptance
+    else: return np.array(traj), np.array(ene), av_acceptance, np.array(quantities)
 
 def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : float = 1e-1,
     dt : float = 5e-3, kT : float = 1., seed : int = 1, if_tqdm: bool = True):
