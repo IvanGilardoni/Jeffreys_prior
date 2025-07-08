@@ -12,7 +12,7 @@ import pandas
 sys.path.append('../loss_function_complete/')
 
 from MDRefine.MDRefine import load_data, normalize_observables, minimizer, loss_function, unwrap_2dict
-from Functions.basic_functions_bayesian import run_Metropolis, local_density
+from Functions.basic_functions_bayesian import run_Metropolis, local_density, Saving_function
 
 def save_dict_to_txt(my_dict, txt_path, sep : str=' '):
     """
@@ -193,7 +193,7 @@ else:
 
     x0 = result.pars
 
-#%% 3. run Metropolis sampling
+#%% 3. define proposal and energy_fun
 
 if not args.if_onebyone: proposal = args.dx
 else: proposal = ('one-by-one', args.dx)
@@ -250,14 +250,7 @@ else:
 
     energy_function = lambda x : energy_fun_FFF(x, args.if_Jeffreys)
 
-t0 = time.time()
-
-sampling = run_Metropolis(x0, proposal, energy_function, n_steps=args.n_steps, seed=args.seed)
-
-dt = time.time() - t0
-
-#%% 4. save output
-
+#%% 4. saving folders
 if args.if_reduce: path = 'Results_sampling_ER_reduced'
 else: path = 'Results_sampling_ER'
 if not os.path.exists(path): os.mkdir(path)
@@ -267,22 +260,20 @@ date = s.strftime('%Y_%m_%d_%H_%M_%S_%f')
 path = path + '/Result_' + str(date)
 
 if not os.path.exists(path): os.mkdir(path)
-else: print('possible overwriting')
+else:
+    print('possible overwriting')
+    sys.exit()
 
 if args.if_normalize:
     for name_mol in data.mol.keys():
         save_dict_to_txt(data.mol[name_mol].normg_mean, path + '/normg_mean_%s_%i' % (name_mol, args.stride))
         save_dict_to_txt(data.mol[name_mol].normg_std, path + '/normg_std_%s_%i' % (name_mol, args.stride))
 
-values = vars(args)
-values['av. acceptance'] = sampling[2]
-values['time'] = dt
+#%% 5. run_Metropolis and save output results
 
-temp = pandas.DataFrame(list(values.values()), index=list(values.keys()), columns=[date]).T
-temp.to_csv(path + '/par_values')
+t0 = time.time()
 
-np.save(path + '/trajectory', sampling[0])
-np.save(path + '/energy', sampling[1])
+saving = Saving_function(vars(args), t0, date, path)
 
-# if type(sampling[2]) is not float:  # if float, it is the average acceptance
-np.save(path + '/quantities', sampling[3])
+sampling = run_Metropolis(x0, proposal, energy_function, n_steps=args.n_steps, seed=args.seed, saving=saving)
+
