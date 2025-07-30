@@ -1,6 +1,69 @@
 # Jeffreys_prior
 
-The notebooks `main_notebook_1.ipynb` and `main_notebook_2.ipynb` are the central filess of this github project `Jeffreys_prior`, along with the Python functions `Functions/basic_functions_bayesian.py` and `Functions/basic_functions_gaussian.py` and the Python file `main_sampling_bayesian.py` that employs these two functions for calculations on Ulysses cluster whose output are analyzed in a section of `main_notebook_2.ipynb`.
+This project demonstrates how to perform **Bayesian sampling of ensembles**, emphasizing the critical role of the **Jeffreys prior** in Bayesian inference. The notebooks and scripts provide a hands-on exploration of Bayesian techniques, focusing on how ensemble counting (namely, choosing the non-informative reference prior) influences results.
 
-The notebook `MD_analysis.ipynb` should not stay in this github project, since it refers to a different work.
-It analyses some output data of MD simulations of RNA oligomers, in particular the relative distances between (C5 atoms of) each nucleotide, clustering in ensemble conformations, and the H-bonds between nucleotides. The cluster analysis can be extended to a Markov State Model, deriving transition paths and rates between clusters. Moreover, the H-bonds can be analyzed also in relation with clusters. Then, you can extract images illustrating these different conformations (including the formation of Hydrogen bonds, either Watson-Crick or non-canonical). Which are the transient states between different clusters?
+---
+
+## Project Structure
+
+```
+Jeffreys_prior/
+├── Functions/
+│ ├── basic_functions_bayesian.py # Core Bayesian functions used throughout the project.
+│ ├── basic_functions_gaussian.py # Supporting functions for the simple Gaussian model.
+│ ├── coretools.py # Core functions including the definition of the class Result.
+│
+├── Manuscript_images/ # images for the manuscript.
+│
+├── main_notebook_1.ipynb/ # Introduction and initial Bayesian sampling examples demonstrating core concepts on a Gaussian toy-model. 
+├── main_notebook_2.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (including results from calculations performed on the Ulysses cluster).
+├── main_sampling_bayesian.py/ # Script that utilizes the above functions to perform Bayesian sampling on the Ulysses cluster. Its outputs are further analyzed in `main_notebook_2.ipynb`.
+└── README.md # This file
+```
+
+---
+
+## Getting Started
+
+### Requirements
+
+- Python 3.8+
+- Jupyter Notebook
+- Required packages (install via pip):  
+
+```
+pip install numpy scipy matplotlib jupyter
+```
+
+### Running the notebooks
+
+1. Clone the repository:
+
+```
+git clone https://github.com/yourusername/Jeffreys_prior.git
+cd Jeffreys_prior
+```
+
+2. Launch Jupyter Notebook:
+
+```
+jupyter notebook
+```
+
+3. Open and run [`main_notebook_1.ipynb`](main_notebook_1.ipynb) to get introduced to Bayesian sampling with different non-informative priors on a simple Gaussian toy-model.
+
+4. Use [`main_sampling_bayesian.py`](main_sampling_bayesian.py) to perform the ensemble sampling on your local machine.
+
+5. Analyze the outputs in [`main_notebook_2.ipynb`](main_notebook_2.ipynb), which demonstrates the impact of the Jeffreys non-informative prior on the results.
+
+---
+
+## About the Jeffreys prior
+
+The Jeffreys prior is a non-informative prior derived from the Fisher information metric, providing an objective Bayesian prior that is invariant under reparameterization. This project showcases how using the Jeffreys prior can lead to more robust inference in ensemble sampling, particularly when compared to other non-informative priors.
+
+---
+
+## Contact
+
+For questions or contributions, please open an issue or contact the maintainer at `igilardo@sissa.it`.
