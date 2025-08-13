@@ -9,7 +9,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from tqdm import tqdm
-import Functions.coretools as coretools
+from .coretools import Result
 import time, pandas
 
 def make_sym_pos_def(cov, epsilon=1e-8):
@@ -401,6 +401,14 @@ class Saving_function():
         # if type(sampling[2]) is not float:  # if float, it is the average acceptance
         np.save(self.path + '/quantities', qs)
 
+class Result_run_Metropolis(Result):
+    '''Result of a `run_Metropolis` calculation.'''
+    def __init__(self, traj, ene, av_acceptance, quantities):
+        self.traj = traj
+        self.ene = ene
+        self.av_acceptance = av_acceptance
+        self.quantities = quantities
+
 
 def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
@@ -567,8 +575,13 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
                 if quantities[0] is not None: qs = np.array(quantities)
                 saving(av_acceptance, np.array(traj), np.array(ene), qs)
     
+    # if quantities[0] is None: obj_result = Result_run_Metropolis(np.array(traj), np.array(ene), av_acceptance)
+    # else: obj_result = Result_run_Metropolis(np.array(traj), np.array(ene), av_acceptance, np.array(quantities))
+    # return obj_result
+
     if quantities[0] is None: return np.array(traj), np.array(ene), av_acceptance
     else: return np.array(traj), np.array(ene), av_acceptance, np.array(quantities)
+
 
 def langevin_sampling(energy_fun, starting_x, n_iter : int = 10000, gamma : float = 1e-1,
     dt : float = 5e-3, kT : float = 1., seed : int = 1, if_tqdm: bool = True):
@@ -729,7 +742,7 @@ def block_analysis(x, size_blocks = None, n_conv = 50):
     
     return Block_analysis_Result(mean, std, opt_epsilon, epsilon, smooth, n_blocks, size_blocks)
 
-class Block_analysis_Result(coretools.Result):
+class Block_analysis_Result(Result):
     """Result of a `bussilab.maxent.maxent` calculation."""
     def __init__(self, mean : float, std : float, opt_epsilon : float, epsilons : np.ndarray,
             epsilons_smooth : np.ndarray, n_blocks : np.ndarray, size_blocks : np.ndarray):
