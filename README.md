@@ -9,7 +9,7 @@ This project demonstrates how to perform **Bayesian sampling of ensembles**, emp
 ```
 Jeffreys_prior/
 ├── Functions/
-│ ├── basic_functions_bayesian.py # Core Bayesian functions used throughout the project.
+│ ├── basic_functions_bayesian.py # Core Bayesian functions used throughout the project (old version, the new one has been included in `MDRefine`).
 │ ├── basic_functions_gaussian.py # Supporting functions for the simple Gaussian model.
 │ ├── coretools.py # Core functions including the definition of the class Result.
 │
@@ -34,6 +34,12 @@ Jeffreys_prior/
 ```
 pip install numpy scipy matplotlib jupyter
 ```
+
+### Basic functions
+
+1. `basic_functions_bayesian.py`: old version, the new one is [`MDRefine/bayesian.py`](https://github.com/bussilab/MDRefine/blob/master/MDRefine/bayesian.py).
+
+2. `basic_functions_gaussian.py`: supporting functions for the simple Gaussian model.
 
 ### Running the notebooks
 

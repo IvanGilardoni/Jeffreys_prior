@@ -312,7 +312,8 @@ class numerical_props(Result):  # old name: compute_depth
         else:
 
             perimeter = build_perimeter(self.min_lambda, delta_lambda, n_perim)
-            
+            self.perimeter = perimeter
+
             losses = []
 
             for i in range(perimeter.shape[1]):

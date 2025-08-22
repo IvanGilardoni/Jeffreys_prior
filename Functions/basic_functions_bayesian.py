@@ -14,7 +14,7 @@ import time, pandas
 
 def make_sym_pos_def(cov, epsilon=1e-8):
     """ Make `cov` symmetric and positive definite
-    (useful if `cov` should be so, but it is not, e.g., due to round-off errors).
+    (`cov` should be so, unless linearly-dependent observables; if it is not, this is due to round-off errors).
     """
     cov = (cov + cov.T)/2
     min_eig = np.min(np.real(np.linalg.eigvals(cov)))
@@ -410,7 +410,7 @@ class Result_run_Metropolis(Result):
         self.quantities = quantities
 
 
-def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: None, *, kT = 1.,
+def run_Metropolis(x0, proposal, energy_function, quantity_function = None, *, kT = 1.,
     n_steps = 100, seed = 1, i_print = 10000, if_tqdm = True, saving = None):
     """
     This function runs a Metropolis sampling algorithm.
@@ -525,7 +525,8 @@ def run_Metropolis(x0, proposal, energy_function, quantity_function = lambda x: 
     u0 = out[0]
 
     if len(out) == 2:
-        print('Warning: the quantities of interest are given by energy_function')  #  and not by quantity_function')
+        if quantity_function is not None:
+            print('Warning: the quantities of interest are given by energy_function and not by quantity_function')
         q0 = out[1]  # if `energy_function` has more than one output, the second one is the quantity of interest
     else: q0 = quantity_function(x0_)
     
