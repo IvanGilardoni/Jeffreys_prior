@@ -15,6 +15,11 @@ Jeffreys_prior/
 │
 ├── Manuscript_images/ # images for the manuscript.
 │
+│
+├── analysed_HPC_data/ # data from HPC calculations used in `main_notebook_3.ipynb`.
+├── normalized_values # data from normalization of the observables used in `main_notebook_3.ipynb`.
+├── whole_df_pars # data from HPC calculations used in `main_notebook_3.ipynb`.
+│
 ├── main_notebook_1.ipynb/ # Introduction and initial Bayesian sampling examples demonstrating core concepts on a Gaussian toy-model. 
 ├── main_notebook_2.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (limited to only two observables).
 ├── main_notebook_3.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (results from HPC calculations performed on the Ulysses cluster).
