@@ -37,7 +37,7 @@ pip install numpy scipy matplotlib jupyter
 
 ### Basic functions
 
-1. `basic_functions_bayesian.py`: old version, the new one is [`MDRefine/bayesian.py`](https://github.com/bussilab/MDRefine/blob/master/MDRefine/bayesian.py).
+1. `basic_functions_bayesian.py`: old version (still working), the new one is [`MDRefine/bayesian.py`](https://github.com/bussilab/MDRefine/blob/master/MDRefine/bayesian.py).
 
 2. `basic_functions_gaussian.py`: supporting functions for the simple Gaussian model.
 
