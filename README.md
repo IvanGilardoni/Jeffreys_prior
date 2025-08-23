@@ -1,6 +1,6 @@
 # Jeffreys_prior
 
-This project demonstrates how to perform **Bayesian sampling of ensembles**, emphasizing the critical role of the **Jeffreys prior** in Bayesian inference. The notebooks and scripts provide a hands-on exploration of Bayesian techniques, focusing on how ensemble counting (namely, choosing the non-informative reference prior) influences results.
+This project demonstrates how to perform **Bayesian sampling of ensembles**, emphasizing the critical role of the **Jeffreys prior** in Bayesian inference. The notebooks and scripts provide a hands-on exploration of Bayesian techniques, focusing on how ensemble counting (namely, choosing the non-informative reference prior) influences the results.
 
 ---
 
@@ -16,7 +16,8 @@ Jeffreys_prior/
 ├── Manuscript_images/ # images for the manuscript.
 │
 ├── main_notebook_1.ipynb/ # Introduction and initial Bayesian sampling examples demonstrating core concepts on a Gaussian toy-model. 
-├── main_notebook_2.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (including results from calculations performed on the Ulysses cluster).
+├── main_notebook_2.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (limited to only two observables).
+├── main_notebook_3.ipynb/ # Analysis of sampling outputs for the realistic case of RNA refinement (results from HPC calculations performed on the Ulysses cluster).
 ├── main_sampling_bayesian.py/ # Script that utilizes the above functions to perform Bayesian sampling on the Ulysses cluster. Its outputs are further analyzed in `main_notebook_2.ipynb`.
 └── README.md # This file
 ```
@@ -56,11 +57,13 @@ cd Jeffreys_prior
 jupyter notebook
 ```
 
-3. Open and run [`main_notebook_1.ipynb`](main_notebook_1.ipynb) to get introduced to Bayesian sampling with different non-informative priors on a simple Gaussian toy-model.
+3. Open and run [`main_notebook_1.ipynb`](main_notebook_1.ipynb) to get introduced to Bayesian sampling with uninformative priors on a simple Gaussian toy-model.
 
 4. Use [`main_sampling_bayesian.py`](main_sampling_bayesian.py) to perform the ensemble sampling on your local machine.
 
-5. Analyze the outputs in [`main_notebook_2.ipynb`](main_notebook_2.ipynb), which demonstrates the impact of the Jeffreys non-informative prior on the results.
+5. Open and run [`main_notebook_2.ipynb`](main_notebook_2.ipynb) to perform Bayesian sampling with multiple uninformative priors on a realistic case study (RNA oligomer, limited to only two observables); this example demonstrates the impact of the Jeffreys uninformative prior on the results.
+
+6. Analyze the outputs of HPC calculations in [`main_notebook_3.ipynb`](main_notebook_3.ipynb), for the same molecule as in 5., now with a total of 28 observables.
 
 ---
 
